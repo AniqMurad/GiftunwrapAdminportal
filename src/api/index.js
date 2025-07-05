@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const API = axios.create({
-  baseURL: 'https://giftunwrap-puce.vercel.app/api',
+  baseURL: 'https://giftunwrapbackend.vercel.app/api',
 });
 
 // ✅ User APIs

@@ -2,8 +2,8 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios'; // Ensure axios is imported for direct calls or your api.js handles it
 
-const fetchProducts = () => axios.get('https://giftunwrap-puce.vercel.app/api/products');
-const deleteProductById = (productId) => axios.delete(`https://giftunwrap-puce.vercel.app/api/products/${productId}`);
+const fetchProducts = () => axios.get('https://giftunwrapbackend.vercel.app/api/products');
+const deleteProductById = (productId) => axios.delete(`https://giftunwrapbackend.vercel.app/api/products/${productId}`);
 
 
 export default function Products() {

@@ -10,7 +10,7 @@ const AdminReviews = () => {
         try {
             setLoading(true);
             // Updated endpoint: Call the new API to get all reviews
-            const response = await axios.get('https://giftunwrap-puce.vercel.app/api/products/reviews');
+            const response = await axios.get('https://giftunwrapbackend.vercel.app/api/products/reviews');
             setReviews(response.data);
             setError(null);
         } catch (err) {
@@ -30,7 +30,7 @@ const AdminReviews = () => {
 
         try {
             // Updated endpoint: Call the new API to delete a specific review
-            await axios.delete(`https://giftunwrap-puce.vercel.app/api/products/reviews/${reviewId}`);
+            await axios.delete(`https://giftunwrapbackend.vercel.app/api/products/reviews/${reviewId}`);
             alert('Review deleted successfully!');
             fetchReviews(); // Re-fetch reviews to update the list
         } catch (err) {
