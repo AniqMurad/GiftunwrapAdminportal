@@ -11,7 +11,7 @@ const categoryOptions = {
     giftsForHer: ['mum', 'sister', 'girlfriend', 'daughter', 'wife', 'friend'],
     giftsForHim: ['pop', 'brother', 'boyfriend', 'son', 'husband', 'friend'],
     giftsForWedding: ['bride', 'groom', 'bridalparty', 'weddinganniversary'],
-    FlowersChocolates: ['flowers', 'chocolates', 'flowerschocolates'],
+    FlowersChocolates: ['cake', 'bouquets', 'cakebouquets'],
 };
 
 const inputStyle = {
