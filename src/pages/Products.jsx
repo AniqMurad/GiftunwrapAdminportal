@@ -115,7 +115,7 @@ export default function Products() {
                               <strong>Rating:</strong> {review.rating} ⭐<br />
                               <strong>Comment:</strong> {review.comment}<br />
                               {review.userId && review.userId.name && ( // Access populated user data
-                                <span><strong>By:</strong> {review.userId.name} ({review.userId.email})<br /></span>
+                                <span><strong>By:</strong>  {review.username}<br /></span>
                               )}
                               {review.createdAt && (
                                 <span style={{ color: '#999' }}>{new Date(review.createdAt).toLocaleDateString()}</span>
