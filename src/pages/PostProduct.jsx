@@ -5,7 +5,7 @@ import { postProduct } from '../api'; // Assuming your api.js
 const categoryOptions = {
     birthday: ['his birthday', 'her birthday', 'employee birthday', 'baby birthday'],
     giftsForCompany: ['newhire', 'ocassion', 'farewell', 'achievement', 'workanniversary'],
-    giftsForReligions: ['eid', 'holi', 'diwali', 'navroz'],
+    giftsForReligions: ['eid', 'holi', 'diwali', 'navroz', 'ramadan'],
     giftsForBabies: ['newborn'],
     giftsForEveryone: ['couple', 'teacher', 'relative'],
     giftsForHer: ['mum', 'sister', 'girlfriend', 'daughter', 'wife', 'friend'],
