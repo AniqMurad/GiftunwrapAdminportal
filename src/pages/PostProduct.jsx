@@ -3,7 +3,7 @@ import { postProduct } from '../api'; // Assuming your api.js
 
 // Category and KeyGift map (Keep as is)
 const categoryOptions = {
-    birthday: ['his birthday', 'her birthday', 'employee birthday', 'baby birthday'],
+    //birthday: ['his birthday', 'her birthday', 'employee birthday', 'baby birthday'],
     giftsForCompany: ['newhire', 'ocassion', 'farewell', 'achievement', 'workanniversary'],
     giftsForReligions: ['eid', 'holi', 'diwali', 'navroz', 'ramadan'],
     giftsForBabies: ['newborn'],
@@ -40,7 +40,6 @@ export default function PostProduct() {
         category: '',
         products: [
             {
-                id: '',
                 name: '',
                 price: '',
                 originalPrice: '',
@@ -109,7 +108,6 @@ export default function PostProduct() {
 
         const productToSubmit = {
             ...form.products[0],
-            id: Number(form.products[0].id),
             price: Number(form.products[0].price),
             originalPrice: form.products[0].originalPrice ? Number(form.products[0].originalPrice) : undefined,
             discount: form.products[0].discount ? Number(form.products[0].discount) : undefined,
@@ -128,7 +126,6 @@ export default function PostProduct() {
             setForm({
                 category: '',
                 products: [{
-                    id: '',
                     name: '',
                     price: '',
                     originalPrice: '',
@@ -154,15 +151,7 @@ export default function PostProduct() {
         <div style={{ maxWidth: '700px', margin: 'auto', padding: '2rem' }}>
             <h2 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>Post New Product</h2>
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <input
-                    type="number"
-                    name="id"
-                    placeholder="Product ID"
-                    value={form.products[0].id}
-                    onChange={handleProductChange}
-                    style={inputStyle}
-                    required
-                />
+                
 
                 <select
                     value={form.category}
