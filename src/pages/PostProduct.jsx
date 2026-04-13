@@ -53,6 +53,7 @@ export default function PostProduct() {
     });
     // State to hold selected image files, initialize as an empty array
     const [productImages, setProductImages] = useState([]);
+    const [isPosting, setIsPosting] = useState(false);
 
     const handleCategoryChange = (e) => {
         const selectedCategory = e.target.value;
@@ -92,6 +93,10 @@ export default function PostProduct() {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
+        if (isPosting) {
+            return;
+        }
+
         // Basic validation for images
         if (productImages.length === 0) {
             alert('Please upload at least one image for the product.');
@@ -120,6 +125,7 @@ export default function PostProduct() {
         });
 
         try {
+            setIsPosting(true);
             await postProduct(formData); // Use the postProduct from api.js
             alert('Product posted successfully!');
             // Reset form and images after successful submission
@@ -142,6 +148,8 @@ export default function PostProduct() {
         } catch (error) {
             console.error('Failed to post product:', error.response?.data || error);
             alert('Failed to post product: ' + (error.response?.data?.message || error.message || 'Unknown error'));
+        } finally {
+            setIsPosting(false);
         }
     };
 
@@ -260,24 +268,60 @@ export default function PostProduct() {
 
                 <button
                     type="submit"
+                    disabled={isPosting}
                     style={{
                         padding: '0.75rem',
-                        backgroundColor: '#1d4ed8',
+                        backgroundColor: isPosting ? '#93c5fd' : '#1d4ed8',
                         color: 'white',
                         border: 'none',
-                        cursor: 'pointer',
+                        cursor: isPosting ? 'not-allowed' : 'pointer',
                         borderRadius: '6px',
                         fontWeight: 'bold',
                         fontSize: '1rem',
                         marginTop: '1rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.5rem',
                         transition: 'background-color 0.3s ease',
+                        opacity: isPosting ? 0.9 : 1,
                     }}
-                    onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#2563eb')}
-                    onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#1d4ed8')}
+                    onMouseEnter={e => {
+                        if (!isPosting) {
+                            e.currentTarget.style.backgroundColor = '#2563eb';
+                        }
+                    }}
+                    onMouseLeave={e => {
+                        e.currentTarget.style.backgroundColor = isPosting ? '#93c5fd' : '#1d4ed8';
+                    }}
                 >
-                    Post Product
+                    {isPosting && (
+                        <span
+                            aria-hidden="true"
+                            style={{
+                                width: '16px',
+                                height: '16px',
+                                border: '2px solid rgba(255, 255, 255, 0.5)',
+                                borderTopColor: '#fff',
+                                borderRadius: '50%',
+                                animation: 'spin 0.8s linear infinite',
+                            }}
+                        />
+                    )}
+                    {isPosting ? 'Posting...' : 'Post Product'}
                 </button>
             </form>
+
+            <style>{`
+                @keyframes spin {
+                    from {
+                        transform: rotate(0deg);
+                    }
+                    to {
+                        transform: rotate(360deg);
+                    }
+                }
+            `}</style>
         </div>
     );
 }
