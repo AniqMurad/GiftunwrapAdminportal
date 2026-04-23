@@ -255,7 +255,7 @@ export default function PostProduct() {
                     <input
                         type="file"
                         multiple
-                        accept="image/jpeg, image/png, image/jpg"
+                        accept="image/jpeg, image/png, image/jpg, image/webp"
                         onChange={handleImageFileChange}
                         style={{ ...inputStyle, border: 'none', padding: '0', cursor: 'pointer' }}
                     />
