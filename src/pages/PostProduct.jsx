@@ -36,6 +36,10 @@ const selectStyle = {
 };
 
 export default function PostProduct() {
+    const MAX_UPLOAD_BYTES = 4 * 1024 * 1024; // Keep request under common serverless body limits
+    const TARGET_IMAGE_BYTES = 900 * 1024;
+    const MAX_IMAGE_DIMENSION = 1600;
+
     const [form, setForm] = useState({
         category: '',
         products: [
@@ -54,6 +58,78 @@ export default function PostProduct() {
     // State to hold selected image files, initialize as an empty array
     const [productImages, setProductImages] = useState([]);
     const [isPosting, setIsPosting] = useState(false);
+
+    const loadImage = (file) =>
+        new Promise((resolve, reject) => {
+            const img = new Image();
+            const objectUrl = URL.createObjectURL(file);
+
+            img.onload = () => {
+                URL.revokeObjectURL(objectUrl);
+                resolve(img);
+            };
+            img.onerror = () => {
+                URL.revokeObjectURL(objectUrl);
+                reject(new Error(`Failed to read image: ${file.name}`));
+            };
+
+            img.src = objectUrl;
+        });
+
+    const canvasToBlob = (canvas, type, quality) =>
+        new Promise((resolve, reject) => {
+            canvas.toBlob((blob) => {
+                if (!blob) {
+                    reject(new Error('Unable to compress image.'));
+                    return;
+                }
+                resolve(blob);
+            }, type, quality);
+        });
+
+    const compressImage = async (file) => {
+        if (!file.type.startsWith('image/')) {
+            return file;
+        }
+
+        const image = await loadImage(file);
+        const scale = Math.min(1, MAX_IMAGE_DIMENSION / Math.max(image.width, image.height));
+        const width = Math.max(1, Math.round(image.width * scale));
+        const height = Math.max(1, Math.round(image.height * scale));
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+
+        const context = canvas.getContext('2d');
+        if (!context) {
+            return file;
+        }
+
+        context.drawImage(image, 0, 0, width, height);
+
+        // Convert to JPEG for strong size reduction before API upload.
+        let quality = 0.85;
+        let blob = await canvasToBlob(canvas, 'image/jpeg', quality);
+
+        while (blob.size > TARGET_IMAGE_BYTES && quality > 0.55) {
+            quality -= 0.1;
+            blob = await canvasToBlob(canvas, 'image/jpeg', quality);
+        }
+
+        if (blob.size >= file.size) {
+            return file;
+        }
+
+        const baseName = file.name.replace(/\.[^/.]+$/, '');
+        return new File([blob], `${baseName}.jpg`, { type: 'image/jpeg' });
+    };
+
+    const prepareImagesForUpload = async (files) => {
+        const compressed = await Promise.all(files.map((file) => compressImage(file)));
+        const totalBytes = compressed.reduce((sum, file) => sum + file.size, 0);
+        return { files: compressed, totalBytes };
+    };
 
     const handleCategoryChange = (e) => {
         const selectedCategory = e.target.value;
@@ -108,6 +184,8 @@ export default function PostProduct() {
             return;
         }
 
+        setIsPosting(true);
+
         const formData = new FormData();
         formData.append('category', form.category);
 
@@ -119,13 +197,19 @@ export default function PostProduct() {
         };
         formData.append('products', JSON.stringify([productToSubmit]));
 
-        // Append each selected image file
-        productImages.forEach((file) => {
-            formData.append('images', file); // 'images' must match multer field name
-        });
-
         try {
-            setIsPosting(true);
+            const { files: preparedFiles, totalBytes } = await prepareImagesForUpload(productImages);
+
+            if (totalBytes > MAX_UPLOAD_BYTES) {
+                alert('Images are still too large for upload. Please use fewer images or smaller originals.');
+                return;
+            }
+
+            // Append processed image files
+            preparedFiles.forEach((file) => {
+                formData.append('images', file); // 'images' must match multer field name
+            });
+
             await postProduct(formData); // Use the postProduct from api.js
             alert('Product posted successfully!');
             // Reset form and images after successful submission
