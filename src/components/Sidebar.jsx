@@ -8,6 +8,8 @@ export default function Sidebar() {
     { path: '/users', label: 'Users' },
     { path: '/products', label: 'Products' },
     { path: '/post-product', label: 'Post Product' },
+    { path: '/gift-box-items', label: 'Gift Box Items' },
+    { path: '/boxes-and-cards', label: 'Boxes & Cards' },
     { path: '/orders', label: 'Orders' },
     { path: '/messages', label: 'Messages' },
     { path: '/adminreviews', label: 'Reviews' },

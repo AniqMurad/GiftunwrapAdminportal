@@ -99,10 +99,102 @@ export default function Orders() {
               <hr />
 
               <h6>Order Items</h6>
+              
+              {/* Gift Box Details */}
+              {order.isGiftBox && (
+                <div className="mb-3">
+                  <div className="alert alert-info mb-3">
+                    <strong>🎁 Build-a-Box Gift Order</strong>
+                  </div>
+                  
+                  {/* Box Information */}
+                  {order.selectedBox && (
+                    <div className="card mb-3">
+                      <div className="card-header bg-light">
+                        <strong>Gift Box</strong>
+                      </div>
+                      <div className="card-body">
+                        <div className="row">
+                          <div className="col-md-3">
+                            {order.selectedBox.image && (
+                              <img 
+                                src={order.selectedBox.image} 
+                                alt={order.selectedBox.name}
+                                className="img-fluid rounded"
+                                style={{ maxHeight: '100px', objectFit: 'cover' }}
+                              />
+                            )}
+                          </div>
+                          <div className="col-md-9">
+                            <p className="mb-1"><strong>Name:</strong> {order.selectedBox.name}</p>
+                            <p className="mb-1"><strong>Size:</strong> {order.selectedBox.size}</p>
+                            <p className="mb-0"><strong>Price:</strong> ${order.selectedBox.price?.toFixed(2)}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Card Information */}
+                  {order.selectedCard && (
+                    <div className="card mb-3">
+                      <div className="card-header bg-light">
+                        <strong>Greeting Card</strong>
+                      </div>
+                      <div className="card-body">
+                        <div className="row">
+                          <div className="col-md-3">
+                            {order.selectedCard.image && (
+                              <img 
+                                src={order.selectedCard.image} 
+                                alt={order.selectedCard.name}
+                                className="img-fluid rounded"
+                                style={{ maxHeight: '100px', objectFit: 'cover' }}
+                              />
+                            )}
+                          </div>
+                          <div className="col-md-9">
+                            <p className="mb-1"><strong>Name:</strong> {order.selectedCard.name}</p>
+                            <p className="mb-0"><strong>Design:</strong> {order.selectedCard.design}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Card Message */}
+                  {order.cardMessage && (
+                    <div className="card mb-3">
+                      <div className="card-header bg-light">
+                        <strong>Card Message</strong>
+                      </div>
+                      <div className="card-body">
+                        <p className="mb-0 fst-italic">"{order.cardMessage}"</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <h6 className="mt-3 mb-2">Gift Items:</h6>
+                </div>
+              )}
+              
               <ul className="mb-3 ps-3">
-                {order.orderItems?.map(item => (
-                  <li key={item.productId}>
-                    <strong>{item.name}</strong> x {item.quantity} — ${item.priceAtTimeOfOrder} ({item.productCategory})
+                {order.orderItems?.map((item, index) => (
+                  <li key={item.productId || index} className="mb-2">
+                    <div className="d-flex align-items-center">
+                      {item.imageUrl && (
+                        <img 
+                          src={item.imageUrl} 
+                          alt={item.name}
+                          className="rounded me-2"
+                          style={{ width: '40px', height: '40px', objectFit: 'cover' }}
+                        />
+                      )}
+                      <div>
+                        <strong>{item.name}</strong> x {item.quantity} — ${item.priceAtTimeOfOrder} 
+                        <span className="text-muted ms-1">({item.productCategory})</span>
+                      </div>
+                    </div>
                   </li>
                 ))}
               </ul>
