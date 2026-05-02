@@ -8,6 +8,8 @@ import Orders from './pages/Orders';
 import Messages from './pages/Messages';
 import Sidebar from './components/Sidebar';
 import AdminReviews from './components/AdminReviews';
+import GiftBoxItems from './pages/GiftBoxItems';
+import BoxesAndCards from './pages/BoxesAndCards';
 
 function App() {
   const [isAuth, setIsAuth] = useState(false);
@@ -104,6 +106,8 @@ function App() {
             <Route path="/orders" element={<Orders />} />
             <Route path="/messages" element={<Messages />} />
             <Route path="/adminreviews" element={<AdminReviews />} />
+            <Route path="/gift-box-items" element={<GiftBoxItems />} />
+            <Route path="/boxes-and-cards" element={<BoxesAndCards />} />
           </Routes>
         </div>
       </div>
