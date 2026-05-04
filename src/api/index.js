@@ -24,4 +24,44 @@ export const deleteProductById = (productId) => API.delete(`/products/${productI
 export const postProduct = (data) =>
   API.post('/products/multipleproductcategory', data);
 
+// ✅ Gift Box Item APIs
+export const fetchGiftBoxItems = () => API.get('/gift-box-items');
+export const createGiftBoxItem = (formData) =>
+  API.post('/gift-box-items', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+export const updateGiftBoxItem = (id, formData) =>
+  API.put(`/gift-box-items/${id}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+export const deleteGiftBoxItem = (id) => API.delete(`/gift-box-items/${id}`);
+export const toggleGiftBoxItemStock = (id) =>
+  API.patch(`/gift-box-items/${id}/toggle-stock`);
+
+// ✅ Box APIs
+export const fetchBoxes = () => API.get('/boxes');
+export const createBox = (formData) =>
+  API.post('/boxes', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+export const updateBox = (id, formData) =>
+  API.put(`/boxes/${id}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+export const deleteBox = (id) => API.delete(`/boxes/${id}`);
+export const toggleBoxStock = (id) => API.patch(`/boxes/${id}/toggle-stock`);
+
+// ✅ Card APIs
+export const fetchCards = () => API.get('/cards');
+export const createCard = (formData) =>
+  API.post('/cards', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+export const updateCard = (id, formData) =>
+  API.put(`/cards/${id}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+export const deleteCard = (id) => API.delete(`/cards/${id}`);
+export const toggleCardStock = (id) => API.patch(`/cards/${id}/toggle-stock`);
+
 export default API;

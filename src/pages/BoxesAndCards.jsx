@@ -1,5 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import {
+  fetchBoxes,
+  createBox,
+  updateBox,
+  deleteBox,
+  toggleBoxStock as toggleBoxStockApi,
+  fetchCards,
+  createCard,
+  updateCard,
+  deleteCard,
+  toggleCardStock as toggleCardStockApi,
+} from '../api';
 
 const BoxesAndCards = () => {
   const [boxes, setBoxes] = useState([]);
@@ -14,22 +25,18 @@ const BoxesAndCards = () => {
     size: '',
     price: '',
     capacity: '',
-    image: '',
+    imageFile: null,
+    color: '#F5DEB3',
     description: ''
   });
 
   const [cardFormData, setCardFormData] = useState({
     name: '',
     design: '',
-    image: '',
+    imageFile: null,
+    color: '#F5F5F5',
     description: ''
   });
-
-  const [boxImageFile, setBoxImageFile] = useState(null);
-  const [cardImageFile, setCardImageFile] = useState(null);
-
-  const BOX_API_URL = 'http://localhost:5000/api/boxes';
-  const CARD_API_URL = 'http://localhost:5000/api/cards';
 
   useEffect(() => {
     fetchData();
@@ -38,8 +45,8 @@ const BoxesAndCards = () => {
   const fetchData = async () => {
     try {
       const [boxesRes, cardsRes] = await Promise.all([
-        axios.get(BOX_API_URL),
-        axios.get(CARD_API_URL)
+        fetchBoxes(),
+        fetchCards()
       ]);
       setBoxes(boxesRes.data);
       setCards(cardsRes.data);
@@ -51,62 +58,67 @@ const BoxesAndCards = () => {
   };
 
   const handleBoxInputChange = (e) => {
-    const { name, value } = e.target;
-    setBoxFormData(prev => ({ ...prev, [name]: value }));
+    const { name, value, files, type } = e.target;
+    setBoxFormData(prev => ({
+      ...prev,
+      [name]: type === 'file' ? (files?.[0] || null) : value,
+    }));
   };
 
   const handleCardInputChange = (e) => {
-    const { name, value } = e.target;
-    setCardFormData(prev => ({ ...prev, [name]: value }));
+    const { name, value, files, type } = e.target;
+    setCardFormData(prev => ({
+      ...prev,
+      [name]: type === 'file' ? (files?.[0] || null) : value,
+    }));
   };
 
-  const handleBoxImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setBoxImageFile(file);
-      // Create preview URL
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setBoxFormData(prev => ({ ...prev, image: reader.result }));
-      };
-      reader.readAsDataURL(file);
+  const buildBoxFormDataPayload = () => {
+    const payload = new FormData();
+    payload.append('name', boxFormData.name);
+    payload.append('size', boxFormData.size);
+    payload.append('price', boxFormData.price);
+    payload.append('capacity', boxFormData.capacity);
+    payload.append('color', boxFormData.color || '');
+    payload.append('description', boxFormData.description || '');
+
+    if (boxFormData.imageFile) {
+      payload.append('image', boxFormData.imageFile);
     }
+
+    return payload;
   };
 
-  const handleCardImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setCardImageFile(file);
-      // Create preview URL
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setCardFormData(prev => ({ ...prev, image: reader.result }));
-      };
-      reader.readAsDataURL(file);
+  const buildCardFormDataPayload = () => {
+    const payload = new FormData();
+    payload.append('name', cardFormData.name);
+    payload.append('design', cardFormData.design);
+    payload.append('color', cardFormData.color || '');
+    payload.append('description', cardFormData.description || '');
+
+    if (cardFormData.imageFile) {
+      payload.append('image', cardFormData.imageFile);
     }
+
+    return payload;
   };
 
   const handleBoxSubmit = async (e) => {
     e.preventDefault();
+
     try {
-      const formData = new FormData();
-      formData.append('name', boxFormData.name);
-      formData.append('size', boxFormData.size);
-      formData.append('price', boxFormData.price);
-      formData.append('capacity', boxFormData.capacity);
-      formData.append('description', boxFormData.description);
-      
-      if (boxImageFile) {
-        formData.append('image', boxImageFile);
-      } else if (boxFormData.image) {
-        formData.append('imageUrl', boxFormData.image);
-      }
+      const payload = buildBoxFormDataPayload();
 
       if (editingItem) {
-        await axios.put(`${BOX_API_URL}/${editingItem.id}`, formData);
+        await updateBox(editingItem.id, payload);
         alert('Box updated successfully!');
       } else {
-        await axios.post(BOX_API_URL, formData);
+        if (!boxFormData.imageFile) {
+          alert('Please select an image file.');
+          return;
+        }
+
+        await createBox(payload);
         alert('Box created successfully!');
       }
       resetForm();
@@ -119,23 +131,20 @@ const BoxesAndCards = () => {
 
   const handleCardSubmit = async (e) => {
     e.preventDefault();
+
     try {
-      const formData = new FormData();
-      formData.append('name', cardFormData.name);
-      formData.append('design', cardFormData.design);
-      formData.append('description', cardFormData.description);
-      
-      if (cardImageFile) {
-        formData.append('image', cardImageFile);
-      } else if (cardFormData.image) {
-        formData.append('imageUrl', cardFormData.image);
-      }
+      const payload = buildCardFormDataPayload();
 
       if (editingItem) {
-        await axios.put(`${CARD_API_URL}/${editingItem.id}`, formData);
+        await updateCard(editingItem.id, payload);
         alert('Card updated successfully!');
       } else {
-        await axios.post(CARD_API_URL, formData);
+        if (!cardFormData.imageFile) {
+          alert('Please select an image file.');
+          return;
+        }
+
+        await createCard(payload);
         alert('Card created successfully!');
       }
       resetForm();
@@ -153,10 +162,10 @@ const BoxesAndCards = () => {
       size: box.size,
       price: box.price,
       capacity: box.capacity,
-      image: box.image,
+      imageFile: null,
+      color: box.color || '#F5DEB3',
       description: box.description || ''
     });
-    setBoxImageFile(null);
     setActiveTab('boxes');
     setShowForm(true);
   };
@@ -166,10 +175,10 @@ const BoxesAndCards = () => {
     setCardFormData({
       name: card.name,
       design: card.design,
-      image: card.image,
+      imageFile: null,
+      color: card.color || '#F5F5F5',
       description: card.description || ''
     });
-    setCardImageFile(null);
     setActiveTab('cards');
     setShowForm(true);
   };
@@ -177,7 +186,7 @@ const BoxesAndCards = () => {
   const handleDeleteBox = async (id) => {
     if (window.confirm('Are you sure you want to delete this box?')) {
       try {
-        await axios.delete(`${BOX_API_URL}/${id}`);
+        await deleteBox(id);
         alert('Box deleted successfully!');
         fetchData();
       } catch (error) {
@@ -190,7 +199,7 @@ const BoxesAndCards = () => {
   const handleDeleteCard = async (id) => {
     if (window.confirm('Are you sure you want to delete this card?')) {
       try {
-        await axios.delete(`${CARD_API_URL}/${id}`);
+        await deleteCard(id);
         alert('Card deleted successfully!');
         fetchData();
       } catch (error) {
@@ -202,7 +211,7 @@ const BoxesAndCards = () => {
 
   const toggleBoxStock = async (id) => {
     try {
-      await axios.patch(`${BOX_API_URL}/${id}/toggle-stock`);
+      await toggleBoxStockApi(id);
       fetchData();
     } catch (error) {
       console.error('Error toggling box stock:', error);
@@ -212,7 +221,7 @@ const BoxesAndCards = () => {
 
   const toggleCardStock = async (id) => {
     try {
-      await axios.patch(`${CARD_API_URL}/${id}/toggle-stock`);
+      await toggleCardStockApi(id);
       fetchData();
     } catch (error) {
       console.error('Error toggling card stock:', error);
@@ -226,17 +235,17 @@ const BoxesAndCards = () => {
       size: '',
       price: '',
       capacity: '',
-      image: '',
+      imageFile: null,
+      color: '#F5DEB3',
       description: ''
     });
     setCardFormData({
       name: '',
       design: '',
-      image: '',
+      imageFile: null,
+      color: '#F5F5F5',
       description: ''
     });
-    setBoxImageFile(null);
-    setCardImageFile(null);
     setEditingItem(null);
     setShowForm(false);
   };
@@ -338,17 +347,38 @@ const BoxesAndCards = () => {
                   className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
                 />
               </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium mb-1">Image *</label>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Image {editingItem ? '(optional)' : '*'}
+                </label>
                 <input
                   type="file"
-                  accept="image/jpeg,image/png,image/jpg,image/webp"
-                  onChange={handleBoxImageChange}
+                  name="imageFile"
+                  onChange={handleBoxInputChange}
+                  required={!editingItem}
+                  accept="image/*"
                   className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
                 />
-                {boxFormData.image && (
-                  <img src={boxFormData.image} alt="Preview" className="mt-2 h-20 w-20 object-cover rounded" />
+                {editingItem && (
+                  <div className="mt-2 flex items-center gap-3">
+                    <span className="text-xs text-gray-500">Current image:</span>
+                    <img
+                      src={editingItem.image}
+                      alt={editingItem.name}
+                      className="h-10 w-10 object-cover rounded"
+                    />
+                  </div>
                 )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Color</label>
+                <input
+                  type="color"
+                  name="color"
+                  value={boxFormData.color}
+                  onChange={handleBoxInputChange}
+                  className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-black h-10"
+                />
               </div>
             </div>
             <div>
@@ -411,17 +441,38 @@ const BoxesAndCards = () => {
                   className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
                 />
               </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium mb-1">Image *</label>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Image {editingItem ? '(optional)' : '*'}
+                </label>
                 <input
                   type="file"
-                  accept="image/jpeg,image/png,image/jpg,image/webp"
-                  onChange={handleCardImageChange}
+                  name="imageFile"
+                  onChange={handleCardInputChange}
+                  required={!editingItem}
+                  accept="image/*"
                   className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
                 />
-                {cardFormData.image && (
-                  <img src={cardFormData.image} alt="Preview" className="mt-2 h-20 w-20 object-cover rounded" />
+                {editingItem && (
+                  <div className="mt-2 flex items-center gap-3">
+                    <span className="text-xs text-gray-500">Current image:</span>
+                    <img
+                      src={editingItem.image}
+                      alt={editingItem.name}
+                      className="h-10 w-10 object-cover rounded"
+                    />
+                  </div>
                 )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Color</label>
+                <input
+                  type="color"
+                  name="color"
+                  value={cardFormData.color}
+                  onChange={handleCardInputChange}
+                  className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-black h-10"
+                />
               </div>
             </div>
             <div>
@@ -486,7 +537,9 @@ const BoxesAndCards = () => {
               {boxes.map((box) => (
                 <tr key={box.id}>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <img src={box.image} alt={box.name} className="h-12 w-12 object-cover rounded" />
+                    <div className="h-12 w-12 rounded" style={{ backgroundColor: box.color }}>
+                      <img src={box.image} alt={box.name} className="h-full w-full object-cover rounded" />
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">{box.name}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">{box.size}</td>
@@ -553,7 +606,9 @@ const BoxesAndCards = () => {
               {cards.map((card) => (
                 <tr key={card.id}>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <img src={card.image} alt={card.name} className="h-12 w-12 object-cover rounded" />
+                    <div className="h-12 w-12 rounded" style={{ backgroundColor: card.color }}>
+                      <img src={card.image} alt={card.name} className="h-full w-full object-cover rounded" />
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">{card.name}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{card.design}</td>

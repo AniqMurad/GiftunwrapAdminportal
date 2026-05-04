@@ -1,5 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import {
+  fetchGiftBoxItems,
+  createGiftBoxItem,
+  updateGiftBoxItem,
+  deleteGiftBoxItem,
+  toggleGiftBoxItemStock,
+} from '../api';
 
 const GiftBoxItems = () => {
   const [items, setItems] = useState([]);
@@ -10,11 +16,9 @@ const GiftBoxItems = () => {
     name: '',
     price: '',
     category: 'drinkware',
-    image: '',
+    imageFile: null,
     description: ''
   });
-
-  const [imageFile, setImageFile] = useState(null);
 
   const categories = [
     'drinkware',
@@ -27,15 +31,13 @@ const GiftBoxItems = () => {
     'other'
   ];
 
-  const API_URL = 'http://localhost:5000/api/gift-box-items';
-
   useEffect(() => {
     fetchItems();
   }, []);
 
   const fetchItems = async () => {
     try {
-      const response = await axios.get(API_URL);
+      const response = await fetchGiftBoxItems();
       setItems(response.data);
       setLoading(false);
     } catch (error) {
@@ -45,48 +47,46 @@ const GiftBoxItems = () => {
   };
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, files, type } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: type === 'file' ? (files?.[0] || null) : value
     }));
   };
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setImageFile(file);
-      // Create preview URL
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData(prev => ({ ...prev, image: reader.result }));
-      };
-      reader.readAsDataURL(file);
+  const buildMultipartFormData = () => {
+    const payload = new FormData();
+    payload.append('name', formData.name);
+    payload.append('price', formData.price);
+    payload.append('category', formData.category);
+    payload.append('description', formData.description || '');
+
+    if (formData.imageFile) {
+      payload.append('image', formData.imageFile);
     }
+
+    return payload;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     try {
-      const submitData = new FormData();
-      submitData.append('name', formData.name);
-      submitData.append('price', formData.price);
-      submitData.append('category', formData.category);
-      submitData.append('description', formData.description);
-      
-      if (imageFile) {
-        submitData.append('image', imageFile);
-      } else if (formData.image) {
-        submitData.append('imageUrl', formData.image);
-      }
+      const payload = buildMultipartFormData();
 
       if (editingItem) {
-        await axios.put(`${API_URL}/${editingItem.id}`, submitData);
+        await updateGiftBoxItem(editingItem.id, payload);
         alert('Item updated successfully!');
       } else {
-        await axios.post(API_URL, submitData);
+        if (!formData.imageFile) {
+          alert('Please select an image file.');
+          return;
+        }
+
+        await createGiftBoxItem(payload);
         alert('Item created successfully!');
       }
+
       resetForm();
       fetchItems();
     } catch (error) {
@@ -101,17 +101,16 @@ const GiftBoxItems = () => {
       name: item.name,
       price: item.price,
       category: item.category,
-      image: item.image,
+      imageFile: null,
       description: item.description || ''
     });
-    setImageFile(null);
     setShowForm(true);
   };
 
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this item?')) {
       try {
-        await axios.delete(`${API_URL}/${id}`);
+        await deleteGiftBoxItem(id);
         alert('Item deleted successfully!');
         fetchItems();
       } catch (error) {
@@ -123,7 +122,7 @@ const GiftBoxItems = () => {
 
   const toggleStock = async (id) => {
     try {
-      await axios.patch(`${API_URL}/${id}/toggle-stock`);
+      await toggleGiftBoxItemStock(id);
       fetchItems();
     } catch (error) {
       console.error('Error toggling stock:', error);
@@ -136,10 +135,9 @@ const GiftBoxItems = () => {
       name: '',
       price: '',
       category: 'drinkware',
-      image: '',
+      imageFile: null,
       description: ''
     });
-    setImageFile(null);
     setEditingItem(null);
     setShowForm(false);
   };
@@ -204,16 +202,27 @@ const GiftBoxItems = () => {
                   ))}
                 </select>
               </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium mb-1">Image *</label>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Image {editingItem ? '(optional)' : '*'}
+                </label>
                 <input
                   type="file"
-                  accept="image/jpeg,image/png,image/jpg,image/webp"
-                  onChange={handleImageChange}
+                  name="imageFile"
+                  onChange={handleInputChange}
+                  required={!editingItem}
+                  accept="image/*"
                   className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
                 />
-                {formData.image && (
-                  <img src={formData.image} alt="Preview" className="mt-2 h-20 w-20 object-cover rounded" />
+                {editingItem && (
+                  <div className="mt-2 flex items-center gap-3">
+                    <span className="text-xs text-gray-500">Current image:</span>
+                    <img
+                      src={editingItem.image}
+                      alt={editingItem.name}
+                      className="h-10 w-10 object-cover rounded"
+                    />
+                  </div>
                 )}
               </div>
             </div>
