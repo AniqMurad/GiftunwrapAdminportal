@@ -14,8 +14,6 @@ const GiftBoxItems = () => {
     description: ''
   });
 
-  const [imageFile, setImageFile] = useState(null);
-
   const categories = [
     'drinkware',
     'stationery',
@@ -52,39 +50,14 @@ const GiftBoxItems = () => {
     }));
   };
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setImageFile(file);
-      // Create preview URL
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData(prev => ({ ...prev, image: reader.result }));
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const submitData = new FormData();
-      submitData.append('name', formData.name);
-      submitData.append('price', formData.price);
-      submitData.append('category', formData.category);
-      submitData.append('description', formData.description);
-      
-      if (imageFile) {
-        submitData.append('image', imageFile);
-      } else if (formData.image) {
-        submitData.append('imageUrl', formData.image);
-      }
-
       if (editingItem) {
-        await axios.put(`${API_URL}/${editingItem.id}`, submitData);
+        await axios.put(`${API_URL}/${editingItem.id}`, formData);
         alert('Item updated successfully!');
       } else {
-        await axios.post(API_URL, submitData);
+        await axios.post(API_URL, formData);
         alert('Item created successfully!');
       }
       resetForm();
@@ -104,7 +77,6 @@ const GiftBoxItems = () => {
       image: item.image,
       description: item.description || ''
     });
-    setImageFile(null);
     setShowForm(true);
   };
 
@@ -139,7 +111,6 @@ const GiftBoxItems = () => {
       image: '',
       description: ''
     });
-    setImageFile(null);
     setEditingItem(null);
     setShowForm(false);
   };
@@ -204,17 +175,16 @@ const GiftBoxItems = () => {
                   ))}
                 </select>
               </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium mb-1">Image *</label>
+              <div>
+                <label className="block text-sm font-medium mb-1">Image URL *</label>
                 <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/jpg,image/webp"
-                  onChange={handleImageChange}
+                  type="url"
+                  name="image"
+                  value={formData.image}
+                  onChange={handleInputChange}
+                  required
                   className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
                 />
-                {formData.image && (
-                  <img src={formData.image} alt="Preview" className="mt-2 h-20 w-20 object-cover rounded" />
-                )}
               </div>
             </div>
             <div>
