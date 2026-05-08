@@ -81,6 +81,8 @@ export default function Products() {
       subcategory: product.subcategory || '',
       shortDescription: product.shortDescription || '',
       longDescription: product.longDescription || '',
+      metaTitle: product.metaTitle || '',
+      metaDescription: product.metaDescription || '',
     });
     setNewImages([]); // Clear any previously selected new images
     setCurrentImagesToRetain(product.images || []); // Store existing images to retain
@@ -310,6 +312,22 @@ export default function Products() {
                             value={editFormData.subcategory || ''}
                             onChange={handleEditFormChange}
                             style={{ width: '100%', padding: '5px', marginTop: '5px' }}
+                          />
+                          <input
+                            type="text"
+                            name="metaTitle"
+                            placeholder="Meta Title (SEO - optional)"
+                            value={editFormData.metaTitle || ''}
+                            onChange={handleEditFormChange}
+                            style={{ width: '100%', padding: '5px', marginTop: '5px' }}
+                          />
+                          <textarea
+                            name="metaDescription"
+                            placeholder="Meta Description (SEO - optional, max 160 chars)"
+                            value={editFormData.metaDescription || ''}
+                            onChange={handleEditFormChange}
+                            maxLength="160"
+                            style={{ width: '100%', minHeight: '60px', padding: '5px', marginTop: '5px' }}
                           />
                           {/* Reviews are displayed, but not editable here as they have their own management */}
                            <div style={{marginTop: '10px', fontSize: '0.9em', color: '#666'}}>

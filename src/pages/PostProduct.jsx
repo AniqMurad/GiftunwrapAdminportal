@@ -52,6 +52,8 @@ export default function PostProduct() {
                 subcategory: '',
                 shortDescription: '',
                 longDescription: '',
+                metaTitle: '',
+                metaDescription: '',
             }
         ]
     });
@@ -224,6 +226,8 @@ export default function PostProduct() {
                     subcategory: '',
                     shortDescription: '',
                     longDescription: '',
+                    metaTitle: '',
+                    metaDescription: '',
                 }]
             });
             setProductImages([]); // Clear selected images
@@ -330,6 +334,24 @@ export default function PostProduct() {
                     value={form.products[0].longDescription}
                     onChange={handleProductChange}
                     style={textareaStyle}
+                />
+
+                <input
+                    type="text"
+                    name="metaTitle"
+                    placeholder="Meta Title (SEO - Optional)"
+                    value={form.products[0].metaTitle}
+                    onChange={handleProductChange}
+                    style={inputStyle}
+                />
+
+                <textarea
+                    name="metaDescription"
+                    placeholder="Meta Description (SEO - Optional, max 160 characters)"
+                    value={form.products[0].metaDescription}
+                    onChange={handleProductChange}
+                    style={textareaStyle}
+                    maxLength="160"
                 />
 
                 <div>
