@@ -9,7 +9,7 @@ const categoryOptions = {
     giftsForBabies: ['newborn'],
     giftsForEveryone: ['couple', 'teacher', 'relative'],
     giftsForHer: ['mum', 'sister', 'girlfriend', 'daughter', 'wife', 'friend'],
-    giftsForHim: ['pop', 'brother', 'boyfriend', 'son', 'husband', 'friend'],
+    giftsForHim: ['father', 'brother', 'boyfriend', 'son', 'husband', 'friend'],
     giftsForWedding: ['bride', 'groom', 'bridalparty', 'weddinganniversary'],
     FlowersChocolates: ['cake', 'bouquets', 'cakebouquets'],
 };
