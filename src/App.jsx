@@ -10,6 +10,7 @@ import Sidebar from './components/Sidebar';
 import AdminReviews from './components/AdminReviews';
 import GiftBoxItems from './pages/GiftBoxItems';
 import BoxesAndCards from './pages/BoxesAndCards';
+import Quotes from './pages/Quotes';
 
 function App() {
   const [isAuth, setIsAuth] = useState(false);
@@ -104,6 +105,7 @@ function App() {
             <Route path="/products" element={<Products />} />
             <Route path="/post-product" element={<PostProduct />} />
             <Route path="/orders" element={<Orders />} />
+            <Route path="/quotes" element={<Quotes />} />
             <Route path="/messages" element={<Messages />} />
             <Route path="/adminreviews" element={<AdminReviews />} />
             <Route path="/gift-box-items" element={<GiftBoxItems />} />

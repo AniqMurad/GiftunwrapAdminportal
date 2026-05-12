@@ -64,4 +64,11 @@ export const updateCard = (id, formData) =>
 export const deleteCard = (id) => API.delete(`/cards/${id}`);
 export const toggleCardStock = (id) => API.patch(`/cards/${id}/toggle-stock`);
 
+// ✅ Quote APIs
+export const fetchQuotes = () => API.get('/quotes');
+export const fetchQuoteById = (quoteId) => API.get(`/quotes/${quoteId}`);
+export const updateQuoteStatus = (quoteId, status) =>
+  API.patch(`/quotes/${quoteId}/status`, { status });
+export const deleteQuote = (quoteId) => API.delete(`/quotes/${quoteId}`);
+
 export default API;
