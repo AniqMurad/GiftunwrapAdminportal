@@ -11,6 +11,7 @@ export default function Sidebar() {
     { path: '/gift-box-items', label: 'Gift Box Items' },
     { path: '/boxes-and-cards', label: 'Boxes & Cards' },
     { path: '/orders', label: 'Orders' },
+    { path: '/quotes', label: 'Quote Requests' },
     { path: '/messages', label: 'Messages' },
     { path: '/adminreviews', label: 'Reviews' },
   ];
