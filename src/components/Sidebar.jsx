@@ -12,6 +12,7 @@ export default function Sidebar() {
     { path: '/boxes-and-cards', label: 'Boxes & Cards' },
     { path: '/orders', label: 'Orders' },
     { path: '/quotes', label: 'Quote Requests' },
+    { path: '/blogs', label: 'Blogs' },
     { path: '/messages', label: 'Messages' },
     { path: '/adminreviews', label: 'Reviews' },
   ];

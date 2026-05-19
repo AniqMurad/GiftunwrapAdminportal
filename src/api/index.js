@@ -2,6 +2,7 @@ import axios from 'axios';
 
 const API = axios.create({
   baseURL: 'https://giftunwrapbackend.vercel.app/api',
+  // baseURL: 'http://localhost:5000/api',
 });
 
 // ✅ User APIs
@@ -70,5 +71,21 @@ export const fetchQuoteById = (quoteId) => API.get(`/quotes/${quoteId}`);
 export const updateQuoteStatus = (quoteId, status) =>
   API.patch(`/quotes/${quoteId}/status`, { status });
 export const deleteQuote = (quoteId) => API.delete(`/quotes/${quoteId}`);
+
+// ✅ Blog APIs
+export const fetchBlogs = () => API.get('/blogs');
+export const fetchBlogsAdmin = () => API.get('/blogs/admin/all');
+export const fetchBlogById = (blogId) => API.get(`/blogs/${blogId}`);
+export const createBlog = (formData) =>
+  API.post('/blogs', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+export const updateBlog = (id, formData) =>
+  API.put(`/blogs/${id}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+export const deleteBlog = (id) => API.delete(`/blogs/${id}`);
+export const toggleBlogPublished = (id) =>
+  API.patch(`/blogs/${id}/toggle-published`);
 
 export default API;
