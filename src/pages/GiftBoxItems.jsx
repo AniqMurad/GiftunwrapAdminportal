@@ -15,21 +15,32 @@ const GiftBoxItems = () => {
   const [formData, setFormData] = useState({
     name: '',
     price: '',
-    category: 'drinkware',
+    category: 'chocolates-snacks',
     imageFile: null,
     description: ''
   });
 
   const categories = [
-    'drinkware',
-    'stationery',
-    'home',
-    'food',
-    'accessories',
-    'toys',
-    'beauty',
-    'other'
+    'chocolates-snacks',
+    'flowers',
+    'customised-items',
+    'jewellery-accessories',
+    'fragrances',
+    'clothing',
+    'shoes',
+    'beauty-personal-care'
   ];
+
+  const categoryLabels = {
+    'chocolates-snacks': 'Chocolates & Snacks',
+    'flowers': 'Flowers',
+    'customised-items': 'Customised Items',
+    'jewellery-accessories': 'Jewellery & Accessories',
+    'fragrances': 'Fragrances',
+    'clothing': 'Clothing',
+    'shoes': 'Shoes',
+    'beauty-personal-care': 'Beauty & Personal Care'
+  };
 
   useEffect(() => {
     fetchItems();
@@ -134,7 +145,7 @@ const GiftBoxItems = () => {
     setFormData({
       name: '',
       price: '',
-      category: 'drinkware',
+      category: 'chocolates-snacks',
       imageFile: null,
       description: ''
     });
@@ -198,7 +209,7 @@ const GiftBoxItems = () => {
                   className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
                 >
                   {categories.map(cat => (
-                    <option key={cat} value={cat}>{cat.charAt(0).toUpperCase() + cat.slice(1)}</option>
+                    <option key={cat} value={cat}>{categoryLabels[cat]}</option>
                   ))}
                 </select>
               </div>
@@ -286,8 +297,8 @@ const GiftBoxItems = () => {
                   <img src={item.image} alt={item.name} className="h-12 w-12 object-cover rounded" />
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">{item.name}</td>
-                <td className="px-6 py-4 whitespace-nowrap capitalize">{item.category}</td>
-                <td className="px-6 py-4 whitespace-nowrap">${item.price.toFixed(2)}</td>
+                <td className="px-6 py-4 whitespace-nowrap">{categoryLabels[item.category] || item.category}</td>
+                <td className="px-6 py-4 whitespace-nowrap">PKR {item.price.toFixed(2)}</td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                     item.inStock ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
