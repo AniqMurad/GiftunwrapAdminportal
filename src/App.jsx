@@ -11,6 +11,7 @@ import AdminReviews from './components/AdminReviews';
 import GiftBoxItems from './pages/GiftBoxItems';
 import BoxesAndCards from './pages/BoxesAndCards';
 import Quotes from './pages/Quotes';
+import Blogs from './pages/Blogs';
 
 function App() {
   const [isAuth, setIsAuth] = useState(false);
@@ -107,6 +108,7 @@ function App() {
             <Route path="/orders" element={<Orders />} />
             <Route path="/quotes" element={<Quotes />} />
             <Route path="/messages" element={<Messages />} />
+            <Route path="/blogs" element={<Blogs />} />
             <Route path="/adminreviews" element={<AdminReviews />} />
             <Route path="/gift-box-items" element={<GiftBoxItems />} />
             <Route path="/boxes-and-cards" element={<BoxesAndCards />} />
