@@ -17,7 +17,8 @@ const GiftBoxItems = () => {
     price: '',
     category: 'chocolates-snacks',
     imageFile: null,
-    description: ''
+    description: '',
+    colorVariants: []
   });
 
   const categories = [
@@ -65,6 +66,28 @@ const GiftBoxItems = () => {
     }));
   };
 
+  const addColorVariant = () => {
+    setFormData(prev => ({
+      ...prev,
+      colorVariants: [...prev.colorVariants, { color: '', imageFile: null }]
+    }));
+  };
+
+  const removeColorVariant = (idx) => {
+    setFormData(prev => ({
+      ...prev,
+      colorVariants: prev.colorVariants.filter((_, i) => i !== idx)
+    }));
+  };
+
+  const handleColorVariantChange = (idx, field, value) => {
+    setFormData(prev => {
+      const variants = [...prev.colorVariants];
+      variants[idx] = { ...variants[idx], [field]: value };
+      return { ...prev, colorVariants: variants };
+    });
+  };
+
   const buildMultipartFormData = () => {
     const payload = new FormData();
     payload.append('name', formData.name);
@@ -75,6 +98,15 @@ const GiftBoxItems = () => {
     if (formData.imageFile) {
       payload.append('image', formData.imageFile);
     }
+
+    const colorVariantsMeta = formData.colorVariants.map(v => ({ color: v.color }));
+    payload.append('colorVariants', JSON.stringify(colorVariantsMeta));
+
+    formData.colorVariants.forEach((variant, idx) => {
+      if (variant.imageFile) {
+        payload.append(`colorImage_${idx}`, variant.imageFile);
+      }
+    });
 
     return payload;
   };
@@ -113,7 +145,12 @@ const GiftBoxItems = () => {
       price: item.price,
       category: item.category,
       imageFile: null,
-      description: item.description || ''
+      description: item.description || '',
+      colorVariants: (item.colorVariants || []).map(v => ({
+        color: v.color,
+        existingImage: v.image,
+        imageFile: null
+      }))
     });
     setShowForm(true);
   };
@@ -147,7 +184,8 @@ const GiftBoxItems = () => {
       price: '',
       category: 'chocolates-snacks',
       imageFile: null,
-      description: ''
+      description: '',
+      colorVariants: []
     });
     setEditingItem(null);
     setShowForm(false);
@@ -247,6 +285,66 @@ const GiftBoxItems = () => {
                 className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
               />
             </div>
+
+            {/* Color Variants */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium">Color Variants (optional)</label>
+                <button
+                  type="button"
+                  onClick={addColorVariant}
+                  className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg font-medium"
+                >
+                  + Add Color
+                </button>
+              </div>
+              <div className="space-y-3">
+                {formData.colorVariants.map((variant, idx) => (
+                  <div key={idx} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-semibold text-gray-500">Color {idx + 1}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeColorVariant(idx)}
+                        className="text-xs text-red-500 hover:text-red-700 font-medium"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Color Name *</label>
+                        <input
+                          type="text"
+                          value={variant.color}
+                          onChange={(e) => handleColorVariantChange(idx, 'color', e.target.value)}
+                          placeholder="e.g. Red, Blue, Black…"
+                          className="w-full border border-gray-300 px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                          Image {variant.existingImage ? '(upload to replace)' : '*'}
+                        </label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleColorVariantChange(idx, 'imageFile', e.target.files?.[0] || null)}
+                          className="w-full border border-gray-300 px-3 py-1.5 rounded-lg text-sm bg-white file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-gray-100"
+                        />
+                        {variant.existingImage && !variant.imageFile && (
+                          <div className="mt-1 flex items-center gap-2">
+                            <img src={variant.existingImage} alt={variant.color} className="h-8 w-10 object-cover rounded border" />
+                            <span className="text-xs text-gray-400">Current</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <div className="flex gap-4">
               <button
                 type="submit"
@@ -294,7 +392,21 @@ const GiftBoxItems = () => {
             {items.map((item) => (
               <tr key={item.id}>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <img src={item.image} alt={item.name} className="h-12 w-12 object-cover rounded" />
+                  <img src={item.image} alt={item.name} style={{width: '60px', height: '60px'}} className="h-10 w-10 object-cover rounded" />
+                  {item.colorVariants?.length > 0 && (
+                    <div className="flex gap-1 mt-1 flex-wrap">
+                      {item.colorVariants.map((v, i) => (
+                        <img
+                          key={i}
+                          src={v.image}
+                          alt={v.color}
+                          title={v.color}
+                          style={{ width: '50px', height: '50px' }}
+                          className="h-6 w-6 object-cover rounded-full border border-gray-300"
+                        />
+                      ))}
+                    </div>
+                  )}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">{item.name}</td>
                 <td className="px-6 py-4 whitespace-nowrap">{categoryLabels[item.category] || item.category}</td>

@@ -343,7 +343,7 @@ const Blogs = () => {
             {blogs.map((blog) => (
               <tr key={blog.id}>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <img src={blog.mainImage} alt={blog.title} className="h-12 w-12 object-cover rounded" />
+                  <img src={blog.mainImage} alt={blog.title} style={{ height: '5rem', width: '15rem' }} className="object-cover rounded" />
                 </td>
                 <td className="px-6 py-4">
                   <div className="text-sm font-medium text-gray-900 max-w-xs truncate">
