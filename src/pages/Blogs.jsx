@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   fetchBlogsAdmin,
   createBlog,
@@ -21,6 +21,10 @@ const Blogs = () => {
     mainImageFile: null,
     contentImageFiles: []
   });
+
+  const [showLinkInput, setShowLinkInput] = useState(false);
+  const [linkData, setLinkData] = useState({ text: '', url: '' });
+  const contentRef = useRef(null);
 
   useEffect(() => {
     fetchAllBlogs();
@@ -143,6 +147,53 @@ const Blogs = () => {
     }
   };
 
+  const openLinkPopup = () => {
+    const textarea = contentRef.current;
+    if (textarea) {
+      const selectedText = formData.content.substring(textarea.selectionStart, textarea.selectionEnd);
+      setLinkData({ text: selectedText, url: '' });
+    }
+    setShowLinkInput(true);
+  };
+
+  const handleInsertLink = () => {
+    const textarea = contentRef.current;
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const url = linkData.url.trim();
+    const text = linkData.text.trim() || url;
+
+    if (!url) {
+      alert('Please enter a URL.');
+      return;
+    }
+
+    // Basic URL validation
+    try {
+      const parsed = new URL(url);
+      if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error();
+    } catch {
+      alert('Please enter a valid URL starting with http:// or https://');
+      return;
+    }
+
+    const linkMarkdown = `[${text}](${url})`;
+    const currentContent = formData.content;
+    const newContent =
+      currentContent.substring(0, start) + linkMarkdown + currentContent.substring(end);
+
+    setFormData(prev => ({ ...prev, content: newContent }));
+    setLinkData({ text: '', url: '' });
+    setShowLinkInput(false);
+
+    setTimeout(() => {
+      textarea.focus();
+      const newPos = start + linkMarkdown.length;
+      textarea.setSelectionRange(newPos, newPos);
+    }, 0);
+  };
+
   const resetForm = () => {
     setFormData({
       title: '',
@@ -231,16 +282,63 @@ const Blogs = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Content *</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-sm font-medium">Content *</label>
+                <button
+                  type="button"
+                  onClick={openLinkPopup}
+                  className="flex items-center gap-1 text-xs bg-gray-100 hover:bg-gray-200 border border-gray-300 px-3 py-1 rounded-md font-medium"
+                  title="Insert hyperlink (select text first, then click)"
+                >
+                  <span>🔗</span> Insert Link
+                </button>
+              </div>
+
+              {showLinkInput && (
+                <div className="mb-2 flex flex-col sm:flex-row gap-2 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                  <input
+                    type="text"
+                    placeholder="Link text (optional)"
+                    value={linkData.text}
+                    onChange={e => setLinkData(prev => ({ ...prev, text: e.target.value }))}
+                    className="flex-1 border border-gray-300 px-3 py-1.5 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                  />
+                  <input
+                    type="url"
+                    placeholder="https://example.com"
+                    value={linkData.url}
+                    onChange={e => setLinkData(prev => ({ ...prev, url: e.target.value }))}
+                    onKeyDown={e => e.key === 'Enter' && handleInsertLink()}
+                    className="flex-1 border border-gray-300 px-3 py-1.5 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleInsertLink}
+                    className="bg-black text-white px-4 py-1.5 rounded-md text-sm hover:bg-gray-800 whitespace-nowrap"
+                  >
+                    Insert
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowLinkInput(false)}
+                    className="bg-gray-300 text-black px-3 py-1.5 rounded-md text-sm hover:bg-gray-400"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+
               <textarea
+                ref={contentRef}
                 name="content"
                 value={formData.content}
                 onChange={handleInputChange}
                 required
                 rows="8"
-                placeholder="Write your blog content here..."
-                className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+                placeholder="Write your blog content here...&#10;Tip: Select text and click 'Insert Link' to add a hyperlink."
+                className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-black font-mono text-sm"
               />
+              <p className="text-xs text-gray-400 mt-1">Links are stored as <code>[link text](https://url.com)</code> and rendered as clickable links on the blog page.</p>
             </div>
 
             <div>
