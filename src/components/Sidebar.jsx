@@ -13,6 +13,7 @@ export default function Sidebar() {
     { path: '/orders', label: 'Orders' },
     { path: '/quotes', label: 'Quote Requests' },
     { path: '/blogs', label: 'Blogs' },
+    { path: '/post-blog', label: 'Post Blog' },
     { path: '/messages', label: 'Messages' },
     { path: '/adminreviews', label: 'Reviews' },
   ];
