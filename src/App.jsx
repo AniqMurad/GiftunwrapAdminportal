@@ -12,6 +12,7 @@ import GiftBoxItems from './pages/GiftBoxItems';
 import BoxesAndCards from './pages/BoxesAndCards';
 import Quotes from './pages/Quotes';
 import Blogs from './pages/Blogs';
+import PostBlog from './pages/PostBlog';
 
 function App() {
   const [isAuth, setIsAuth] = useState(false);
@@ -109,6 +110,8 @@ function App() {
             <Route path="/quotes" element={<Quotes />} />
             <Route path="/messages" element={<Messages />} />
             <Route path="/blogs" element={<Blogs />} />
+            <Route path="/post-blog" element={<PostBlog />} />
+            <Route path="/post-blog/:id" element={<PostBlog />} />
             <Route path="/adminreviews" element={<AdminReviews />} />
             <Route path="/gift-box-items" element={<GiftBoxItems />} />
             <Route path="/boxes-and-cards" element={<BoxesAndCards />} />

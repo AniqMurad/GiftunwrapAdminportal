@@ -45,92 +45,53 @@ const AdminReviews = () => {
 
     if (loading) {
         return (
-            <div style={{ textAlign: 'center', padding: '2rem' }}>
-                Loading reviews...
+            <div className="text-center py-5">
+                <div className="spinner-border" role="status">
+                    <span className="visually-hidden">Loading...</span>
+                </div>
             </div>
         );
     }
 
     if (error) {
         return (
-            <div style={{ textAlign: 'center', padding: '2rem', color: 'red' }}>
-                {error}
+            <div className="container mt-4">
+                <div className="alert alert-danger">{error}</div>
             </div>
         );
     }
 
     return (
-        <div
-            style={{
-                maxWidth: '800px',
-                margin: '0 auto',
-                padding: '24px',
-            }}
-        >
-            <h1
-                style={{
-                    fontSize: '24px',
-                    fontWeight: 'bold',
-                    marginBottom: '24px',
-                }}
-            >
-                All Product Reviews
-            </h1>
+        <div className="container mt-4" style={{ maxWidth: '900px' }}>
+            <h2 className="mb-4">All Product Reviews</h2>
 
             {reviews.length === 0 ? (
-                <p style={{ textAlign: 'center', color: '#6b7280' }}>
-                    No reviews found.
-                </p>
+                <div className="alert alert-info">No reviews found.</div>
             ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div className="d-flex flex-column gap-3">
                     {reviews.map((review) => (
-                        <div
-                            key={review._id} 
-                            style={{
-                                border: '1px solid #e5e7eb',
-                                padding: '16px',
-                                borderRadius: '8px',
-                                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-                            }}
-                        >
-                            <div
-                                style={{
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    alignItems: 'flex-start',
-                                    marginBottom: '8px',
-                                }}
-                            >
+                        <div key={review._id} className="card shadow-sm">
+                            <div className="card-body d-flex justify-content-between align-items-start">
                                 <div>
-                                    <p style={{ fontWeight: '600', fontSize: '16px' }}>{review.comment}</p>
-                                    <p style={{ fontSize: '14px', color: '#4b5563' }}>
+                                    <p className="fw-semibold mb-1">{review.comment}</p>
+                                    <p className="text-muted mb-1">
                                         by {review.user ? review.user.name : 'Unknown User'} ({review.user ? review.user.email : 'N/A'})
                                     </p>
-                                    <p style={{ fontSize: '14px', color: '#6b7280' }}>
+                                    <p className="text-muted mb-1">
                                         Product: <strong>{review.productName}</strong> ({review.productCategory}) (ID: {review.productId})
                                     </p>
                                     {review.rating && (
-                                        <p style={{ fontSize: '14px', color: '#6b7280' }}>
+                                        <p className="text-muted mb-1">
                                             Rating: {review.rating}/5
                                         </p>
                                     )}
-                                    <p style={{ fontSize: '12px', color: '#9ca3af' }}>
+                                    <p className="text-muted mb-0" style={{ fontSize: '12px' }}>
                                         Reviewed on: {new Date(review.createdAt).toLocaleDateString()}
                                     </p>
                                 </div>
                                 <button
                                     onClick={() => handleDeleteReview(review._id)}
-                                    style={{
-                                        backgroundColor: '#d32f2f',
-                                        color: '#fff',
-                                        border: 'none',
-                                        padding: '6px 12px',
-                                        cursor: 'pointer',
-                                        borderRadius: '4px',
-                                        transition: 'background-color 0.3s ease',
-                                    }}
-                                    onMouseOver={(e) => (e.target.style.backgroundColor = '#b71c1c')}
-                                    onMouseOut={(e) => (e.target.style.backgroundColor = '#d32f2f')}
+                                    className="btn btn-sm btn-outline-danger"
                                 >
                                     Delete
                                 </button>
