@@ -36,60 +36,49 @@ export default function Users() {
   };
 
   return (
-    <div style={{ maxWidth: '800px', margin: '2rem auto', padding: '0 1rem', fontFamily: 'Arial, sans-serif' }}>
-      <h2 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>All Users</h2>
+    <div className="container mt-4" style={{ maxWidth: '900px' }}>
+      <h2 className="mb-4">All Users</h2>
 
       {loading ? (
-        <p style={{ textAlign: 'center', fontStyle: 'italic' }}>Loading users...</p>
+        <div className="text-center py-5">
+          <div className="spinner-border" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+        </div>
       ) : error ? (
-        <p style={{ color: 'red', textAlign: 'center' }}>{error}</p>
+        <div className="alert alert-danger">{error}</div>
       ) : users.length === 0 ? (
-        <p style={{ textAlign: 'center' }}>No users found.</p>
+        <div className="alert alert-info">No users found.</div>
       ) : (
-        <table
-          border="1"
-          cellPadding="10"
-          style={{
-            borderCollapse: 'collapse',
-            width: '100%',
-            boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
-            backgroundColor: '#fafafa',
-          }}
-        >
-          <thead style={{ backgroundColor: '#f0f0f0' }}>
-            <tr>
-              <th style={{ textAlign: 'left' }}>Email</th>
-              <th style={{ textAlign: 'left' }}>User ID</th>
-              <th style={{ textAlign: 'center' }}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map(u => (
-              <tr key={u._id} style={{ borderBottom: '1px solid #ddd' }}>
-                <td>{u.email}</td>
-                <td>{u._id}</td>
-                <td style={{ textAlign: 'center' }}>
-                  <button
-                    onClick={() => handleDelete(u._id)}
-                    style={{
-                      backgroundColor: '#d32f2f',
-                      color: '#fff',
-                      border: 'none',
-                      padding: '6px 12px',
-                      cursor: 'pointer',
-                      borderRadius: '4px',
-                      transition: 'background-color 0.3s ease',
-                    }}
-                    onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#b71c1c')}
-                    onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#d32f2f')}
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="card shadow-sm">
+          <div className="table-responsive">
+            <table className="table table-hover align-middle mb-0">
+              <thead className="table-light">
+                <tr>
+                  <th>Email</th>
+                  <th>User ID</th>
+                  <th className="text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map(u => (
+                  <tr key={u._id}>
+                    <td>{u.email}</td>
+                    <td><small className="text-muted">{u._id}</small></td>
+                    <td className="text-center">
+                      <button
+                        onClick={() => handleDelete(u._id)}
+                        className="btn btn-sm btn-outline-danger"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
     </div>
   );

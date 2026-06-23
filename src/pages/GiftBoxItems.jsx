@@ -192,11 +192,11 @@ const GiftBoxItems = () => {
   };
 
   if (loading) {
-    return <div className="p-8">Loading...</div>;
+    return <div className="tw-scope p-8">Loading...</div>;
   }
 
   return (
-    <div className="p-8">
+    <div className="tw-scope p-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Gift Box Items</h1>
         <button
@@ -392,7 +392,7 @@ const GiftBoxItems = () => {
             {items.map((item) => (
               <tr key={item.id}>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <img src={item.image} alt={item.name} style={{width: '60px', height: '60px'}} className="h-10 w-10 object-cover rounded" />
+                  <img src={item.image} alt={item.name} className="h-10 w-10 object-cover rounded" />
                   {item.colorVariants?.length > 0 && (
                     <div className="flex gap-1 mt-1 flex-wrap">
                       {item.colorVariants.map((v, i) => (
@@ -401,7 +401,6 @@ const GiftBoxItems = () => {
                           src={v.image}
                           alt={v.color}
                           title={v.color}
-                          style={{ width: '50px', height: '50px' }}
                           className="h-6 w-6 object-cover rounded-full border border-gray-300"
                         />
                       ))}

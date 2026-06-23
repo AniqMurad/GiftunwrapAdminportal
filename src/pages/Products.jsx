@@ -171,46 +171,42 @@ export default function Products() {
   };
 
   if (loading) {
-    return <div style={{ textAlign: 'center', padding: '2rem' }}>Loading products...</div>;
+    return (
+      <div className="text-center py-5">
+        <div className="spinner-border" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
+      </div>
+    );
   }
 
   if (error) {
-    return <div style={{ textAlign: 'center', padding: '2rem', color: 'red' }}>{error}</div>;
+    return <div className="container mt-4"><div className="alert alert-danger">{error}</div></div>;
   }
 
   if (categories.length === 0 || categories.every(cat => cat.products.length === 0)) {
-    return <div style={{ textAlign: 'center', padding: '2rem', color: '#6b7280' }}>No products found in any category.</div>;
+    return <div className="container mt-4"><div className="alert alert-info">No products found in any category.</div></div>;
   }
 
   return (
-    <div style={{ maxWidth: '1000px', margin: '2rem auto', padding: '0 1rem', fontFamily: 'Arial, sans-serif' }}>
-      <h2 style={{ textAlign: 'center', marginBottom: '1.5rem', color: '#333' }}>All Products</h2>
+    <div className="container mt-4" style={{ maxWidth: '1100px' }}>
+      <h2 className="mb-4">All Products</h2>
 
       {categories.map(cat => (
-        <div key={cat._id} style={{ marginBottom: '2rem' }}>
-          <h3 style={{ textTransform: 'capitalize', borderBottom: '2px solid #ddd', paddingBottom: '0.5rem', marginBottom: '1.5rem', color: '#555' }}>
+        <div key={cat._id} className="mb-5">
+          <h3 className="text-capitalize border-bottom pb-2 mb-3 text-secondary">
             {cat.category}
           </h3>
 
-          <table
-            border="1"
-            cellPadding="8"
-            style={{
-              width: '100%',
-              borderCollapse: 'collapse',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-              backgroundColor: '#fff',
-              borderRadius: '8px',
-              overflow: 'hidden'
-            }}
-          >
-            <thead style={{ backgroundColor: '#f5f5f5', borderBottom: '1px solid #e0e0e0' }}>
+          <div className="card shadow-sm">
+          <table className="table table-bordered table-hover align-middle mb-0">
+            <thead className="table-light">
               <tr>
-                <th style={{ textAlign: 'left', padding: '10px 8px' }}>Name</th>
-                <th style={{ textAlign: 'right', padding: '10px 8px' }}>Price</th>
-                <th style={{ textAlign: 'left', padding: '10px 8px' }}>KeyGift</th>
-                <th style={{ textAlign: 'left', padding: '10px 8px' }}>Reviews</th>
-                <th style={{ textAlign: 'center', padding: '10px 8px' }}>Actions</th>
+                <th>Name</th>
+                <th className="text-end">Price</th>
+                <th>KeyGift</th>
+                <th>Reviews</th>
+                <th className="text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -475,6 +471,7 @@ export default function Products() {
               )}
             </tbody>
           </table>
+          </div>
         </div>
       ))}
     </div>

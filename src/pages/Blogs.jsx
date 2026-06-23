@@ -50,11 +50,11 @@ const Blogs = () => {
   };
 
   if (loading) {
-    return <div className="p-8">Loading...</div>;
+    return <div className="tw-scope p-8">Loading...</div>;
   }
 
   return (
-    <div className="p-8">
+    <div className="tw-scope p-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Blog Management</h1>
         <button
@@ -93,7 +93,7 @@ const Blogs = () => {
             {blogs.map((blog) => (
               <tr key={blog.id}>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <img src={blog.mainImage} alt={blog.title} style={{ height: '5rem', width: '15rem' }} className="object-cover rounded" />
+                  <img src={blog.mainImage} alt={blog.title} style={{ height: '3.5rem', width: '5.5rem' }} className="object-cover rounded" />
                 </td>
                 <td className="px-6 py-4">
                   <div className="text-sm font-medium text-gray-900 max-w-xs truncate">

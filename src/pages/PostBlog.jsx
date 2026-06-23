@@ -234,11 +234,11 @@ const PostBlog = () => {
   };
 
   if (loading) {
-    return <div className="p-8">Loading...</div>;
+    return <div className="tw-scope p-8">Loading...</div>;
   }
 
   return (
-    <div className="p-8">
+    <div className="tw-scope p-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">{editingBlog ? 'Edit Blog' : 'Add New Blog'}</h1>
         <button
