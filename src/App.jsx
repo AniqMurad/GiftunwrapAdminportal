@@ -1,18 +1,19 @@
-import { useState } from 'react';
+import { useState, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
-import Users from './pages/Users';
-import Products from './pages/Products';
-import PostProduct from './pages/PostProduct';
-import Orders from './pages/Orders';
-import Messages from './pages/Messages';
 import Sidebar from './components/Sidebar';
-import AdminReviews from './components/AdminReviews';
-import GiftBoxItems from './pages/GiftBoxItems';
-import BoxesAndCards from './pages/BoxesAndCards';
-import Quotes from './pages/Quotes';
-import Blogs from './pages/Blogs';
-import PostBlog from './pages/PostBlog';
+
+const Users = lazy(() => import('./pages/Users'));
+const Products = lazy(() => import('./pages/Products'));
+const PostProduct = lazy(() => import('./pages/PostProduct'));
+const Orders = lazy(() => import('./pages/Orders'));
+const Messages = lazy(() => import('./pages/Messages'));
+const AdminReviews = lazy(() => import('./components/AdminReviews'));
+const GiftBoxItems = lazy(() => import('./pages/GiftBoxItems'));
+const BoxesAndCards = lazy(() => import('./pages/BoxesAndCards'));
+const Quotes = lazy(() => import('./pages/Quotes'));
+const Blogs = lazy(() => import('./pages/Blogs'));
+const PostBlog = lazy(() => import('./pages/PostBlog'));
 
 function App() {
   const [isAuth, setIsAuth] = useState(false);
@@ -101,21 +102,23 @@ function App() {
       <div style={{ display: 'flex' }}>
         <Sidebar />
         <div style={{ flex: 1, padding: '20px' }}>
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/users" element={<Users />} />
-            <Route path="/products" element={<Products />} />
-            <Route path="/post-product" element={<PostProduct />} />
-            <Route path="/orders" element={<Orders />} />
-            <Route path="/quotes" element={<Quotes />} />
-            <Route path="/messages" element={<Messages />} />
-            <Route path="/blogs" element={<Blogs />} />
-            <Route path="/post-blog" element={<PostBlog />} />
-            <Route path="/post-blog/:id" element={<PostBlog />} />
-            <Route path="/adminreviews" element={<AdminReviews />} />
-            <Route path="/gift-box-items" element={<GiftBoxItems />} />
-            <Route path="/boxes-and-cards" element={<BoxesAndCards />} />
-          </Routes>
+          <Suspense fallback={<div style={{ padding: '20px' }}>Loading...</div>}>
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/users" element={<Users />} />
+              <Route path="/products" element={<Products />} />
+              <Route path="/post-product" element={<PostProduct />} />
+              <Route path="/orders" element={<Orders />} />
+              <Route path="/quotes" element={<Quotes />} />
+              <Route path="/messages" element={<Messages />} />
+              <Route path="/blogs" element={<Blogs />} />
+              <Route path="/post-blog" element={<PostBlog />} />
+              <Route path="/post-blog/:id" element={<PostBlog />} />
+              <Route path="/adminreviews" element={<AdminReviews />} />
+              <Route path="/gift-box-items" element={<GiftBoxItems />} />
+              <Route path="/boxes-and-cards" element={<BoxesAndCards />} />
+            </Routes>
+          </Suspense>
         </div>
       </div>
     </Router>
@@ -123,3 +126,5 @@ function App() {
 }
 
 export default App;
+
+/* pushing for live 2 */
