@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   fetchBoxes,
   createBox,
@@ -11,6 +11,21 @@ import {
   deleteCard,
   toggleCardStock as toggleCardStockApi,
 } from '../api';
+import {
+  PageHeader,
+  Card,
+  Input,
+  Textarea,
+  ImageDropzone,
+  Button,
+  Badge,
+  EmptyState,
+  TableSkeleton,
+  Pagination,
+  usePagination,
+  useToast,
+  useConfirm,
+} from '../components/ui';
 
 const BoxesAndCards = () => {
   const [boxes, setBoxes] = useState([]);
@@ -19,7 +34,12 @@ const BoxesAndCards = () => {
   const [activeTab, setActiveTab] = useState('boxes'); // 'boxes' or 'cards'
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
-  
+  const [submitting, setSubmitting] = useState(false);
+  const [deletingBoxId, setDeletingBoxId] = useState(null);
+  const [deletingCardId, setDeletingCardId] = useState(null);
+  const [togglingBoxId, setTogglingBoxId] = useState(null);
+  const [togglingCardId, setTogglingCardId] = useState(null);
+
   const [boxFormData, setBoxFormData] = useState({
     name: '',
     size: '',
@@ -38,9 +58,15 @@ const BoxesAndCards = () => {
     description: ''
   });
 
+  const toast = useToast();
+  const confirm = useConfirm();
+
   useEffect(() => {
     fetchData();
   }, []);
+
+  const boxPagination = usePagination(boxes, 8);
+  const cardPagination = usePagination(cards, 8);
 
   const fetchData = async () => {
     try {
@@ -50,27 +76,22 @@ const BoxesAndCards = () => {
       ]);
       setBoxes(boxesRes.data);
       setCards(cardsRes.data);
-      setLoading(false);
     } catch (error) {
       console.error('Error fetching data:', error);
+      toast.error('Failed to load boxes and cards');
+    } finally {
       setLoading(false);
     }
   };
 
   const handleBoxInputChange = (e) => {
-    const { name, value, files, type } = e.target;
-    setBoxFormData(prev => ({
-      ...prev,
-      [name]: type === 'file' ? (files?.[0] || null) : value,
-    }));
+    const { name, value } = e.target;
+    setBoxFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleCardInputChange = (e) => {
-    const { name, value, files, type } = e.target;
-    setCardFormData(prev => ({
-      ...prev,
-      [name]: type === 'file' ? (files?.[0] || null) : value,
-    }));
+    const { name, value } = e.target;
+    setCardFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const buildBoxFormDataPayload = () => {
@@ -106,52 +127,58 @@ const BoxesAndCards = () => {
   const handleBoxSubmit = async (e) => {
     e.preventDefault();
 
+    if (!editingItem && !boxFormData.imageFile) {
+      toast.error('Please select an image file.');
+      return;
+    }
+
+    setSubmitting(true);
     try {
       const payload = buildBoxFormDataPayload();
 
       if (editingItem) {
         await updateBox(editingItem.id, payload);
-        alert('Box updated successfully!');
+        toast.success('Box updated successfully!');
       } else {
-        if (!boxFormData.imageFile) {
-          alert('Please select an image file.');
-          return;
-        }
-
         await createBox(payload);
-        alert('Box created successfully!');
+        toast.success('Box created successfully!');
       }
       resetForm();
       fetchData();
     } catch (error) {
       console.error('Error saving box:', error);
-      alert('Failed to save box');
+      toast.error('Failed to save box');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleCardSubmit = async (e) => {
     e.preventDefault();
 
+    if (!editingItem && !cardFormData.imageFile) {
+      toast.error('Please select an image file.');
+      return;
+    }
+
+    setSubmitting(true);
     try {
       const payload = buildCardFormDataPayload();
 
       if (editingItem) {
         await updateCard(editingItem.id, payload);
-        alert('Card updated successfully!');
+        toast.success('Card updated successfully!');
       } else {
-        if (!cardFormData.imageFile) {
-          alert('Please select an image file.');
-          return;
-        }
-
         await createCard(payload);
-        alert('Card created successfully!');
+        toast.success('Card created successfully!');
       }
       resetForm();
       fetchData();
     } catch (error) {
       console.error('Error saving card:', error);
-      alert('Failed to save card');
+      toast.error('Failed to save card');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -183,467 +210,278 @@ const BoxesAndCards = () => {
     setShowForm(true);
   };
 
-  const handleDeleteBox = async (id) => {
-    if (window.confirm('Are you sure you want to delete this box?')) {
-      try {
-        await deleteBox(id);
-        alert('Box deleted successfully!');
-        fetchData();
-      } catch (error) {
-        console.error('Error deleting box:', error);
-        alert('Failed to delete box');
-      }
+  const handleDeleteBox = async (id, name) => {
+    const ok = await confirm({ title: 'Delete box?', message: `This will permanently remove "${name}".`, confirmLabel: 'Delete', danger: true });
+    if (!ok) return;
+
+    setDeletingBoxId(id);
+    try {
+      await deleteBox(id);
+      toast.success('Box deleted successfully!');
+      fetchData();
+    } catch (error) {
+      console.error('Error deleting box:', error);
+      toast.error('Failed to delete box');
+    } finally {
+      setDeletingBoxId(null);
     }
   };
 
-  const handleDeleteCard = async (id) => {
-    if (window.confirm('Are you sure you want to delete this card?')) {
-      try {
-        await deleteCard(id);
-        alert('Card deleted successfully!');
-        fetchData();
-      } catch (error) {
-        console.error('Error deleting card:', error);
-        alert('Failed to delete card');
-      }
+  const handleDeleteCard = async (id, name) => {
+    const ok = await confirm({ title: 'Delete card?', message: `This will permanently remove "${name}".`, confirmLabel: 'Delete', danger: true });
+    if (!ok) return;
+
+    setDeletingCardId(id);
+    try {
+      await deleteCard(id);
+      toast.success('Card deleted successfully!');
+      fetchData();
+    } catch (error) {
+      console.error('Error deleting card:', error);
+      toast.error('Failed to delete card');
+    } finally {
+      setDeletingCardId(null);
     }
   };
 
   const toggleBoxStock = async (id) => {
+    setTogglingBoxId(id);
     try {
       await toggleBoxStockApi(id);
-      fetchData();
+      await fetchData();
     } catch (error) {
       console.error('Error toggling box stock:', error);
-      alert('Failed to toggle stock status');
+      toast.error('Failed to toggle stock status');
+    } finally {
+      setTogglingBoxId(null);
     }
   };
 
   const toggleCardStock = async (id) => {
+    setTogglingCardId(id);
     try {
       await toggleCardStockApi(id);
-      fetchData();
+      await fetchData();
     } catch (error) {
       console.error('Error toggling card stock:', error);
-      alert('Failed to toggle stock status');
+      toast.error('Failed to toggle stock status');
+    } finally {
+      setTogglingCardId(null);
     }
   };
 
   const resetForm = () => {
-    setBoxFormData({
-      name: '',
-      size: '',
-      price: '',
-      capacity: '',
-      imageFile: null,
-      color: '#F5DEB3',
-      description: ''
-    });
-    setCardFormData({
-      name: '',
-      design: '',
-      imageFile: null,
-      color: '#F5F5F5',
-      description: ''
-    });
+    setBoxFormData({ name: '', size: '', price: '', capacity: '', imageFile: null, color: '#F5DEB3', description: '' });
+    setCardFormData({ name: '', design: '', imageFile: null, color: '#F5F5F5', description: '' });
     setEditingItem(null);
     setShowForm(false);
   };
 
-  if (loading) {
-    return <div className="tw-scope p-8">Loading...</div>;
-  }
-
   return (
-    <div className="tw-scope p-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Boxes & Cards</h1>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="bg-black text-white px-6 py-2 rounded-lg hover:bg-gray-800"
-        >
-          {showForm ? 'Cancel' : `Add New ${activeTab === 'boxes' ? 'Box' : 'Card'}`}
+    <div className="page-shell">
+      <PageHeader
+        title="Boxes & Cards"
+        description="Gift box and greeting card options for the build-a-box flow."
+        actions={
+          <Button variant={showForm ? 'secondary' : 'primary'} onClick={() => (showForm ? resetForm() : setShowForm(true))}>
+            {showForm ? 'Cancel' : `Add New ${activeTab === 'boxes' ? 'Box' : 'Card'}`}
+          </Button>
+        }
+      />
+
+      <div className="tab-bar">
+        <button type="button" className={`tab-btn ${activeTab === 'boxes' ? 'active' : ''}`} onClick={() => setActiveTab('boxes')}>
+          Boxes ({boxes.length})
+        </button>
+        <button type="button" className={`tab-btn ${activeTab === 'cards' ? 'active' : ''}`} onClick={() => setActiveTab('cards')}>
+          Cards ({cards.length})
         </button>
       </div>
 
-      {/* Tabs */}
-      <div className="mb-6 border-b border-gray-200">
-        <div className="flex space-x-8">
-          <button
-            onClick={() => setActiveTab('boxes')}
-            className={`pb-4 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'boxes'
-                ? 'border-black text-black'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            Boxes ({boxes.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('cards')}
-            className={`pb-4 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'cards'
-                ? 'border-black text-black'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            Cards ({cards.length})
-          </button>
-        </div>
-      </div>
-
-      {/* Box Form */}
       {showForm && activeTab === 'boxes' && (
-        <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-          <h2 className="text-xl font-semibold mb-4">
+        <Card className="form-section">
+          <h2 style={{ margin: '0 0 var(--space-4)', fontSize: '1.1rem', fontWeight: 700 }}>
             {editingItem ? 'Edit Box' : 'Add New Box'}
           </h2>
-          <form onSubmit={handleBoxSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Name *</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={boxFormData.name}
-                  onChange={handleBoxInputChange}
-                  required
-                  className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Size *</label>
-                <input
-                  type="text"
-                  name="size"
-                  value={boxFormData.size}
-                  onChange={handleBoxInputChange}
-                  required
-                  placeholder="e.g., 15cm x 15cm x 10cm"
-                  className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Price *</label>
-                <input
-                  type="number"
-                  name="price"
-                  value={boxFormData.price}
-                  onChange={handleBoxInputChange}
-                  required
-                  step="0.01"
-                  className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Capacity *</label>
-                <input
-                  type="text"
-                  name="capacity"
-                  value={boxFormData.capacity}
-                  onChange={handleBoxInputChange}
-                  required
-                  placeholder="e.g., 3-5 items"
-                  className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Image {editingItem ? '(optional)' : '*'}
-                </label>
-                <input
-                  type="file"
-                  name="imageFile"
-                  onChange={handleBoxInputChange}
-                  required={!editingItem}
-                  accept="image/*"
-                  className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
-                />
-                {editingItem && (
-                  <div className="mt-2 flex items-center gap-3">
-                    <span className="text-xs text-gray-500">Current image:</span>
-                    <img
-                      src={editingItem.image}
-                      alt={editingItem.name}
-                      className="h-10 w-10 object-cover rounded"
-                    />
-                  </div>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Color</label>
-                <input
-                  type="color"
-                  name="color"
-                  value={boxFormData.color}
-                  onChange={handleBoxInputChange}
-                  className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-black h-10"
-                />
-              </div>
+          <form onSubmit={handleBoxSubmit}>
+            <div className="field-row">
+              <Input label="Name" required name="name" value={boxFormData.name} onChange={handleBoxInputChange} />
+              <Input label="Size" required placeholder="e.g., 15cm x 15cm x 10cm" name="size" value={boxFormData.size} onChange={handleBoxInputChange} />
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Description</label>
-              <textarea
-                name="description"
-                value={boxFormData.description}
-                onChange={handleBoxInputChange}
-                rows="3"
-                className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+            <div className="field-row">
+              <Input label="Price" type="number" required step="0.01" name="price" value={boxFormData.price} onChange={handleBoxInputChange} />
+              <Input label="Capacity" required placeholder="e.g., 3-5 items" name="capacity" value={boxFormData.capacity} onChange={handleBoxInputChange} />
+            </div>
+            <div className="field-row">
+              <ImageDropzone
+                label="Image"
+                required={!editingItem}
+                files={boxFormData.imageFile ? [boxFormData.imageFile] : []}
+                onFilesChange={(files) => setBoxFormData(prev => ({ ...prev, imageFile: files[0] || null }))}
+                existingImages={!boxFormData.imageFile && editingItem?.image ? [editingItem.image] : []}
               />
+              <div className="field">
+                <span className="field-label">Color</span>
+                <input type="color" name="color" className="input input-color" value={boxFormData.color} onChange={handleBoxInputChange} />
+              </div>
             </div>
-            <div className="flex gap-4">
-              <button
-                type="submit"
-                className="bg-black text-white px-6 py-2 rounded-lg hover:bg-gray-800"
-              >
-                {editingItem ? 'Update' : 'Create'}
-              </button>
-              <button
-                type="button"
-                onClick={resetForm}
-                className="bg-gray-300 text-black px-6 py-2 rounded-lg hover:bg-gray-400"
-              >
-                Cancel
-              </button>
+            <Textarea label="Description" name="description" rows="3" value={boxFormData.description} onChange={handleBoxInputChange} />
+            <div className="form-actions">
+              <Button type="submit" loading={submitting}>{editingItem ? 'Update' : 'Create'}</Button>
+              <Button type="button" variant="secondary" onClick={resetForm} disabled={submitting}>Cancel</Button>
             </div>
           </form>
-        </div>
+        </Card>
       )}
 
-      {/* Card Form */}
       {showForm && activeTab === 'cards' && (
-        <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-          <h2 className="text-xl font-semibold mb-4">
+        <Card className="form-section">
+          <h2 style={{ margin: '0 0 var(--space-4)', fontSize: '1.1rem', fontWeight: 700 }}>
             {editingItem ? 'Edit Card' : 'Add New Card'}
           </h2>
-          <form onSubmit={handleCardSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Name *</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={cardFormData.name}
-                  onChange={handleCardInputChange}
-                  required
-                  className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Design *</label>
-                <input
-                  type="text"
-                  name="design"
-                  value={cardFormData.design}
-                  onChange={handleCardInputChange}
-                  required
-                  placeholder="e.g., Happy Birthday, Thank You"
-                  className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Image {editingItem ? '(optional)' : '*'}
-                </label>
-                <input
-                  type="file"
-                  name="imageFile"
-                  onChange={handleCardInputChange}
-                  required={!editingItem}
-                  accept="image/*"
-                  className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
-                />
-                {editingItem && (
-                  <div className="mt-2 flex items-center gap-3">
-                    <span className="text-xs text-gray-500">Current image:</span>
-                    <img
-                      src={editingItem.image}
-                      alt={editingItem.name}
-                      className="h-10 w-10 object-cover rounded"
-                    />
-                  </div>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Color</label>
-                <input
-                  type="color"
-                  name="color"
-                  value={cardFormData.color}
-                  onChange={handleCardInputChange}
-                  className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-black h-10"
-                />
-              </div>
+          <form onSubmit={handleCardSubmit}>
+            <div className="field-row">
+              <Input label="Name" required name="name" value={cardFormData.name} onChange={handleCardInputChange} />
+              <Input label="Design" required placeholder="e.g., Happy Birthday, Thank You" name="design" value={cardFormData.design} onChange={handleCardInputChange} />
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Description</label>
-              <textarea
-                name="description"
-                value={cardFormData.description}
-                onChange={handleCardInputChange}
-                rows="3"
-                className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+            <div className="field-row">
+              <ImageDropzone
+                label="Image"
+                required={!editingItem}
+                files={cardFormData.imageFile ? [cardFormData.imageFile] : []}
+                onFilesChange={(files) => setCardFormData(prev => ({ ...prev, imageFile: files[0] || null }))}
+                existingImages={!cardFormData.imageFile && editingItem?.image ? [editingItem.image] : []}
               />
+              <div className="field">
+                <span className="field-label">Color</span>
+                <input type="color" name="color" className="input input-color" value={cardFormData.color} onChange={handleCardInputChange} />
+              </div>
             </div>
-            <div className="flex gap-4">
-              <button
-                type="submit"
-                className="bg-black text-white px-6 py-2 rounded-lg hover:bg-gray-800"
-              >
-                {editingItem ? 'Update' : 'Create'}
-              </button>
-              <button
-                type="button"
-                onClick={resetForm}
-                className="bg-gray-300 text-black px-6 py-2 rounded-lg hover:bg-gray-400"
-              >
-                Cancel
-              </button>
+            <Textarea label="Description" name="description" rows="3" value={cardFormData.description} onChange={handleCardInputChange} />
+            <div className="form-actions">
+              <Button type="submit" loading={submitting}>{editingItem ? 'Update' : 'Create'}</Button>
+              <Button type="button" variant="secondary" onClick={resetForm} disabled={submitting}>Cancel</Button>
             </div>
           </form>
-        </div>
+        </Card>
       )}
 
-      {/* Boxes Table */}
-      {activeTab === 'boxes' && (
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Image
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Name
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Size
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Capacity
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Price
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {boxes.map((box) => (
-                <tr key={box.id}>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="h-12 w-12 rounded" style={{ backgroundColor: box.color }}>
-                      <img src={box.image} alt={box.name} className="h-full w-full object-cover rounded" />
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">{box.name}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">{box.size}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">{box.capacity}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">${box.price.toFixed(2)}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      box.inStock ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                    }`}>
-                      {box.inStock ? 'In Stock' : 'Out of Stock'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <button
-                      onClick={() => handleEditBox(box)}
-                      className="text-indigo-600 hover:text-indigo-900 mr-4"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => toggleBoxStock(box.id)}
-                      className="text-yellow-600 hover:text-yellow-900 mr-4"
-                    >
-                      Toggle
-                    </button>
-                    <button
-                      onClick={() => handleDeleteBox(box.id)}
-                      className="text-red-600 hover:text-red-900"
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {loading ? (
+        <div className="dt-wrap">
+          <div className="dt-scroll">
+            <table className="dt-table">
+              <tbody>
+                <TableSkeleton rows={6} columns={6} />
+              </tbody>
+            </table>
+          </div>
         </div>
-      )}
-
-      {/* Cards Table */}
-      {activeTab === 'cards' && (
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Image
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Name
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Design
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {cards.map((card) => (
-                <tr key={card.id}>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="h-12 w-12 rounded" style={{ backgroundColor: card.color }}>
-                      <img src={card.image} alt={card.name} className="h-full w-full object-cover rounded" />
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">{card.name}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{card.design}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      card.inStock ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                    }`}>
-                      {card.inStock ? 'In Stock' : 'Out of Stock'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <button
-                      onClick={() => handleEditCard(card)}
-                      className="text-indigo-600 hover:text-indigo-900 mr-4"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => toggleCardStock(card.id)}
-                      className="text-yellow-600 hover:text-yellow-900 mr-4"
-                    >
-                      Toggle
-                    </button>
-                    <button
-                      onClick={() => handleDeleteCard(card.id)}
-                      className="text-red-600 hover:text-red-900"
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      ) : activeTab === 'boxes' ? (
+        boxes.length === 0 ? (
+          <EmptyState icon="bi-gift" title="No boxes found" description="Boxes you add will appear here." />
+        ) : (
+          <>
+            <div className="dt-wrap">
+              <div className="dt-scroll">
+                <table className="dt-table">
+                  <thead>
+                    <tr>
+                      <th>Image</th>
+                      <th>Name</th>
+                      <th>Size</th>
+                      <th>Capacity</th>
+                      <th>Price</th>
+                      <th>Status</th>
+                      <th className="col-actions">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {boxPagination.pageItems.map((box) => (
+                      <tr key={box.id}>
+                        <td data-label="Image">
+                          <div style={{ width: 48, height: 48, borderRadius: 'var(--radius-sm)', background: box.color, overflow: 'hidden' }}>
+                            <img src={box.image} alt={box.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          </div>
+                        </td>
+                        <td data-label="Name">{box.name}</td>
+                        <td data-label="Size">{box.size}</td>
+                        <td data-label="Capacity">{box.capacity}</td>
+                        <td data-label="Price">${box.price.toFixed(2)}</td>
+                        <td data-label="Status">
+                          <Badge variant={box.inStock ? 'success' : 'danger'}>{box.inStock ? 'In Stock' : 'Out of Stock'}</Badge>
+                        </td>
+                        <td className="col-actions" data-label="Actions">
+                          <div className="dt-action-group">
+                            <Button variant="secondary" size="sm" onClick={() => handleEditBox(box)}>Edit</Button>
+                            <Button variant="secondary" size="sm" loading={togglingBoxId === box.id} onClick={() => toggleBoxStock(box.id)}>Toggle</Button>
+                            <Button variant="danger-ghost" size="sm" loading={deletingBoxId === box.id} onClick={() => handleDeleteBox(box.id, box.name)}>Delete</Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <Pagination
+              page={boxPagination.page}
+              totalPages={boxPagination.totalPages}
+              onPageChange={boxPagination.setPage}
+              totalItems={boxes.length}
+              pageSize={8}
+            />
+          </>
+        )
+      ) : cards.length === 0 ? (
+        <EmptyState icon="bi-postcard" title="No cards found" description="Greeting cards you add will appear here." />
+      ) : (
+        <>
+          <div className="dt-wrap">
+            <div className="dt-scroll">
+              <table className="dt-table">
+                <thead>
+                  <tr>
+                    <th>Image</th>
+                    <th>Name</th>
+                    <th>Design</th>
+                    <th>Status</th>
+                    <th className="col-actions">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {cardPagination.pageItems.map((card) => (
+                    <tr key={card.id}>
+                      <td data-label="Image">
+                        <div style={{ width: 48, height: 48, borderRadius: 'var(--radius-sm)', background: card.color, overflow: 'hidden' }}>
+                          <img src={card.image} alt={card.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        </div>
+                      </td>
+                      <td data-label="Name">{card.name}</td>
+                      <td data-label="Design">{card.design}</td>
+                      <td data-label="Status">
+                        <Badge variant={card.inStock ? 'success' : 'danger'}>{card.inStock ? 'In Stock' : 'Out of Stock'}</Badge>
+                      </td>
+                      <td className="col-actions" data-label="Actions">
+                        <div className="dt-action-group">
+                          <Button variant="secondary" size="sm" onClick={() => handleEditCard(card)}>Edit</Button>
+                          <Button variant="secondary" size="sm" loading={togglingCardId === card.id} onClick={() => toggleCardStock(card.id)}>Toggle</Button>
+                          <Button variant="danger-ghost" size="sm" loading={deletingCardId === card.id} onClick={() => handleDeleteCard(card.id, card.name)}>Delete</Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <Pagination
+            page={cardPagination.page}
+            totalPages={cardPagination.totalPages}
+            onPageChange={cardPagination.setPage}
+            totalItems={cards.length}
+            pageSize={8}
+          />
+        </>
       )}
     </div>
   );

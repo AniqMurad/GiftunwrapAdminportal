@@ -1,214 +1,252 @@
 import { useEffect, useState } from 'react';
 import { fetchOrders, deleteOrderById, updateOrderStatus } from '../api';
+import {
+  PageHeader,
+  EmptyState,
+  CardListSkeleton,
+  Pagination,
+  usePagination,
+  Button,
+  Card,
+  Badge,
+  useToast,
+  useConfirm,
+} from '../components/ui';
+
+const orderStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled', 'returned'];
+
+const STATUS_VARIANT = {
+  pending: 'warning',
+  processing: 'info',
+  shipped: 'primary',
+  delivered: 'success',
+  cancelled: 'danger',
+  returned: 'danger',
+};
 
 export default function Orders() {
   const [orders, setOrders] = useState([]);
-  const orderStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled', 'returned']; // Define possible statuses
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
+  const [updatingId, setUpdatingId] = useState(null);
+  const toast = useToast();
+  const confirm = useConfirm();
 
   useEffect(() => {
-    fetchOrders().then(res => setOrders(res.data));
+    const load = async () => {
+      try {
+        const res = await fetchOrders();
+        setOrders(res.data);
+      } catch (err) {
+        console.error(err);
+        setError('Failed to load orders.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
   }, []);
 
-  const handleDelete = async (orderId) => {
-    const confirmed = window.confirm('Are you sure you want to delete this order?');
-    if (!confirmed) return;
+  const { page, setPage, totalPages, pageItems } = usePagination(orders, 6);
 
+  const handleDelete = async (orderId) => {
+    const ok = await confirm({
+      title: 'Delete order?',
+      message: 'This will permanently remove this order from the system.',
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
+
+    setDeletingId(orderId);
     try {
       await deleteOrderById(orderId);
-      setOrders(orders.filter(order => order._id !== orderId));
-      alert('Order deleted successfully.');
-    } catch (error) {
-      alert('Failed to delete order.');
-      console.error(error);
+      setOrders(orders.filter((order) => order._id !== orderId));
+      toast.success('Order deleted successfully.');
+    } catch (err) {
+      toast.error('Failed to delete order.');
+      console.error(err);
+    } finally {
+      setDeletingId(null);
     }
   };
 
   const handleStatusChange = async (orderId, newStatus) => {
+    setUpdatingId(orderId);
     try {
       const updatedOrder = await updateOrderStatus(orderId, newStatus);
-      // Update the orders state with the modified order
-      setOrders(orders.map(order =>
-        order._id === orderId ? updatedOrder.data : order
-      ));
-      alert(`Order ${orderId} status updated to ${newStatus}.`);
-    } catch (error) {
-      alert('Failed to update order status.');
-      console.error(error);
+      setOrders(orders.map((order) => (order._id === orderId ? updatedOrder.data : order)));
+      toast.success(`Order status updated to ${newStatus}.`);
+    } catch (err) {
+      toast.error('Failed to update order status.');
+      console.error(err);
+    } finally {
+      setUpdatingId(null);
     }
   };
 
   return (
-    <div className="container mt-4">
-      <h2 className="mb-4">All Orders</h2>
+    <div className="page-shell">
+      <PageHeader title="All Orders" description="Customer orders placed on the storefront." />
 
-      {orders.length === 0 ? (
-        <div className="alert alert-info">No orders found.</div>
+      {error ? (
+        <div className="alert-banner alert-banner-danger">
+          <i className="bi bi-exclamation-circle" aria-hidden="true" />
+          {error}
+        </div>
+      ) : loading ? (
+        <CardListSkeleton count={3} />
+      ) : orders.length === 0 ? (
+        <EmptyState icon="bi-cart-x" title="No orders found" description="Orders placed by customers will appear here." />
       ) : (
-        orders.map((order) => (
-          <div
-            key={order._id}
-            className="card shadow-sm mb-4 border-start border-primary border-5"
-            style={{ position: 'relative' }}
-          >
-            <div className="card-body">
-              <button
-                onClick={() => handleDelete(order._id)}
-                className="btn btn-danger position-absolute"
-                style={{ top: '15px', right: '15px' }}
-              >
-                Delete
-              </button>
-
-              <h5 className="card-title mb-2">Order ID: {order._id}</h5>
-              <p><strong>User ID:</strong> {order.user || 'N/A'}</p>
-              <p className="text-muted mb-2"><strong>Status:</strong> {order.status}
-                <select
-                  className="form-select form-select-sm d-inline-block ms-2"
-                  style={{ width: 'auto' }}
-                  value={order.status}
-                  onChange={(e) => handleStatusChange(order._id, e.target.value)}
-                >
-                  {orderStatuses.map((statusOption) => (
-                    <option key={statusOption} value={statusOption}>
-                      {statusOption.charAt(0).toUpperCase() + statusOption.slice(1)}
-                    </option>
-                  ))}
-                </select>
-              </p>
-              <p><strong>Created:</strong> {new Date(order.createdAt).toLocaleString()}</p>
-
-              <hr />
-
-              <h6>Shipping Info</h6>
-              <p className="mb-1">{order.shippingAddress?.firstName} {order.shippingAddress?.lastName}</p>
-              <p className="mb-1">{order.shippingAddress?.email} | {order.shippingAddress?.phone}</p>
-              <p>{order.shippingAddress?.street}, {order.shippingAddress?.city}, {order.shippingAddress?.state}, {order.shippingAddress?.country} - {order.shippingAddress?.postalCode}</p>
-              {order.shippingAddress?.additionalInfo && (
-                <p><em>Note:</em> {order.shippingAddress.additionalInfo}</p>
-              )}
-
-              <hr />
-
-              <h6>Payment</h6>
-              <p><strong>Method:</strong> {order.paymentDetails?.method}</p>
-              {order.paymentDetails?.method === 'creditCard' && (
-                <p><strong>Card Name:</strong> {order.paymentDetails.cardName}</p>
-              )}
-              <p><strong>Save Card:</strong> {order.paymentDetails?.saveCardDetails ? 'Yes' : 'No'}</p>
-
-              <hr />
-
-              <h6>Order Items</h6>
-              
-              {/* Gift Box Details */}
-              {order.isGiftBox && (
-                <div className="mb-3">
-                  <div className="alert alert-info mb-3">
-                    <strong>🎁 Build-a-Box Gift Order</strong>
+        <>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+            {pageItems.map((order) => (
+              <Card key={order._id} style={{ borderLeft: '4px solid var(--color-primary-600)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
+                  <div style={{ minWidth: 0 }}>
+                    <p className="dt-row-title" style={{ wordBreak: 'break-all' }}>Order ID: {order._id}</p>
+                    <p className="dt-row-subtitle">User ID: {order.user || 'N/A'}</p>
                   </div>
-                  
-                  {/* Box Information */}
-                  {order.selectedBox && (
-                    <div className="card mb-3">
-                      <div className="card-header bg-light">
-                        <strong>Gift Box</strong>
-                      </div>
-                      <div className="card-body">
-                        <div className="row">
-                          <div className="col-md-3">
-                            {order.selectedBox.image && (
-                              <img 
-                                src={order.selectedBox.image} 
-                                alt={order.selectedBox.name}
-                                className="img-fluid rounded"
-                                style={{ maxHeight: '100px', objectFit: 'cover' }}
-                              />
-                            )}
-                          </div>
-                          <div className="col-md-9">
-                            <p className="mb-1"><strong>Name:</strong> {order.selectedBox.name}</p>
-                            <p className="mb-1"><strong>Size:</strong> {order.selectedBox.size}</p>
-                            <p className="mb-0"><strong>Price:</strong> ${order.selectedBox.price?.toFixed(2)}</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Card Information */}
-                  {order.selectedCard && (
-                    <div className="card mb-3">
-                      <div className="card-header bg-light">
-                        <strong>Greeting Card</strong>
-                      </div>
-                      <div className="card-body">
-                        <div className="row">
-                          <div className="col-md-3">
-                            {order.selectedCard.image && (
-                              <img 
-                                src={order.selectedCard.image} 
-                                alt={order.selectedCard.name}
-                                className="img-fluid rounded"
-                                style={{ maxHeight: '100px', objectFit: 'cover' }}
-                              />
-                            )}
-                          </div>
-                          <div className="col-md-9">
-                            <p className="mb-1"><strong>Name:</strong> {order.selectedCard.name}</p>
-                            <p className="mb-0"><strong>Design:</strong> {order.selectedCard.design}</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Card Message */}
-                  {order.cardMessage && (
-                    <div className="card mb-3">
-                      <div className="card-header bg-light">
-                        <strong>Card Message</strong>
-                      </div>
-                      <div className="card-body">
-                        <p className="mb-0 fst-italic">"{order.cardMessage}"</p>
-                      </div>
-                    </div>
-                  )}
-                  
-                  <h6 className="mt-3 mb-2">Gift Items:</h6>
+                  <Button
+                    variant="danger-ghost"
+                    size="sm"
+                    loading={deletingId === order._id}
+                    onClick={() => handleDelete(order._id)}
+                    icon={<i className="bi bi-trash3" aria-hidden="true" />}
+                  >
+                    Delete
+                  </Button>
                 </div>
-              )}
-              
-              <ul className="mb-3 ps-3">
-                {order.orderItems?.map((item, index) => (
-                  <li key={item.productId || index} className="mb-2">
-                    <div className="d-flex align-items-center">
-                      {item.imageUrl && (
-                        <img 
-                          src={item.imageUrl} 
-                          alt={item.name}
-                          className="rounded me-2"
-                          style={{ width: '40px', height: '40px', objectFit: 'cover' }}
-                        />
-                      )}
-                      <div>
-                        <strong>{item.name}</strong> x {item.quantity} — ${item.priceAtTimeOfOrder} 
-                        <span className="text-muted ms-1">({item.productCategory})</span>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginTop: 'var(--space-3)', flexWrap: 'wrap' }}>
+                  <Badge variant={STATUS_VARIANT[order.status] || 'neutral'}>{order.status}</Badge>
+                  <select
+                    className="select"
+                    style={{ width: 'auto', padding: '0.35rem 0.6rem', fontSize: '0.8rem' }}
+                    value={order.status}
+                    disabled={updatingId === order._id}
+                    onChange={(e) => handleStatusChange(order._id, e.target.value)}
+                    aria-label={`Change status for order ${order._id}`}
+                  >
+                    {orderStatuses.map((statusOption) => (
+                      <option key={statusOption} value={statusOption}>
+                        {statusOption.charAt(0).toUpperCase() + statusOption.slice(1)}
+                      </option>
+                    ))}
+                  </select>
+                  {updatingId === order._id && <span className="spinner spinner-dark" style={{ width: 14, height: 14 }} />}
+                  <span className="dt-row-subtitle" style={{ marginLeft: 'auto' }}>
+                    {new Date(order.createdAt).toLocaleString()}
+                  </span>
+                </div>
+
+                <hr className="section-divider" />
+
+                <div className="detail-section">
+                  <p className="detail-section-title">Shipping Info</p>
+                  <p className="detail-row">{order.shippingAddress?.firstName} {order.shippingAddress?.lastName}</p>
+                  <p className="detail-row">{order.shippingAddress?.email} | {order.shippingAddress?.phone}</p>
+                  <p className="detail-row">
+                    {order.shippingAddress?.street}, {order.shippingAddress?.city}, {order.shippingAddress?.state}, {order.shippingAddress?.country} - {order.shippingAddress?.postalCode}
+                  </p>
+                  {order.shippingAddress?.additionalInfo && (
+                    <p className="detail-row"><em>Note:</em> {order.shippingAddress.additionalInfo}</p>
+                  )}
+                </div>
+
+                <div className="detail-section">
+                  <p className="detail-section-title">Payment</p>
+                  <p className="detail-row"><strong>Method:</strong> {order.paymentDetails?.method}</p>
+                  {order.paymentDetails?.method === 'creditCard' && (
+                    <p className="detail-row"><strong>Card Name:</strong> {order.paymentDetails.cardName}</p>
+                  )}
+                  <p className="detail-row"><strong>Save Card:</strong> {order.paymentDetails?.saveCardDetails ? 'Yes' : 'No'}</p>
+                </div>
+
+                <div className="detail-section">
+                  <p className="detail-section-title">Order Items</p>
+
+                  {order.isGiftBox && (
+                    <div style={{ marginBottom: 'var(--space-3)' }}>
+                      <div className="alert-banner alert-banner-info" style={{ marginBottom: 'var(--space-3)' }}>
+                        <i className="bi bi-gift" aria-hidden="true" />
+                        Build-a-Box Gift Order
                       </div>
+
+                      {order.selectedBox && (
+                        <div className="mini-card">
+                          <div className="mini-card-header">Gift Box</div>
+                          <div className="mini-card-body">
+                            {order.selectedBox.image && (
+                              <img src={order.selectedBox.image} alt={order.selectedBox.name} className="mini-card-img" />
+                            )}
+                            <div>
+                              <p className="detail-row"><strong>Name:</strong> {order.selectedBox.name}</p>
+                              <p className="detail-row"><strong>Size:</strong> {order.selectedBox.size}</p>
+                              <p className="detail-row"><strong>Price:</strong> ${order.selectedBox.price?.toFixed(2)}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {order.selectedCard && (
+                        <div className="mini-card">
+                          <div className="mini-card-header">Greeting Card</div>
+                          <div className="mini-card-body">
+                            {order.selectedCard.image && (
+                              <img src={order.selectedCard.image} alt={order.selectedCard.name} className="mini-card-img" />
+                            )}
+                            <div>
+                              <p className="detail-row"><strong>Name:</strong> {order.selectedCard.name}</p>
+                              <p className="detail-row"><strong>Design:</strong> {order.selectedCard.design}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {order.cardMessage && (
+                        <div className="mini-card">
+                          <div className="mini-card-header">Card Message</div>
+                          <div className="mini-card-body">
+                            <p className="detail-row" style={{ fontStyle: 'italic' }}>&ldquo;{order.cardMessage}&rdquo;</p>
+                          </div>
+                        </div>
+                      )}
+
+                      <p className="detail-section-title" style={{ marginTop: 'var(--space-3)' }}>Gift Items</p>
                     </div>
-                  </li>
-                ))}
-              </ul>
+                  )}
 
-              <hr />
+                  <div>
+                    {order.orderItems?.map((item, index) => (
+                      <div key={item.productId || index} className="order-item-row">
+                        {item.imageUrl && <img src={item.imageUrl} alt={item.name} className="order-item-thumb" />}
+                        <span className="detail-row" style={{ margin: 0 }}>
+                          <strong>{item.name}</strong> x {item.quantity} — ${item.priceAtTimeOfOrder}{' '}
+                          <span style={{ color: 'var(--color-text-subtle)' }}>({item.productCategory})</span>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
-              <h6>Summary</h6>
-              <p><strong>Subtotal:</strong> ${order.subtotal}</p>
-              <p><strong>Shipping:</strong> ${order.shippingCost}</p>
-              <p><strong>Discount:</strong> ${order.discountAmount}</p>
-              <p><strong>Total:</strong> <span className="fw-bold">${order.totalAmount}</span></p>
-            </div>
+                <hr className="section-divider" />
+
+                <div className="detail-section" style={{ marginTop: 0 }}>
+                  <p className="detail-section-title">Summary</p>
+                  <p className="detail-row"><strong>Subtotal:</strong> ${order.subtotal}</p>
+                  <p className="detail-row"><strong>Shipping:</strong> ${order.shippingCost}</p>
+                  <p className="detail-row"><strong>Discount:</strong> ${order.discountAmount}</p>
+                  <p className="detail-row" style={{ fontWeight: 700 }}><strong>Total:</strong> ${order.totalAmount}</p>
+                </div>
+              </Card>
+            ))}
           </div>
-        ))
+
+          <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalItems={orders.length} pageSize={6} />
+        </>
       )}
     </div>
   );

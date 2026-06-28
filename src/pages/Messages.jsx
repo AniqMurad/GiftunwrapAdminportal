@@ -1,58 +1,104 @@
 import { useEffect, useState } from 'react';
 import { fetchMessages, deleteMessageById } from '../api';
+import {
+  PageHeader,
+  EmptyState,
+  CardListSkeleton,
+  Pagination,
+  usePagination,
+  Button,
+  Card,
+  useToast,
+  useConfirm,
+} from '../components/ui';
 
 export default function Messages() {
   const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
+  const toast = useToast();
+  const confirm = useConfirm();
 
   useEffect(() => {
-    fetchMessages().then(res => setMessages(res.data));
+    const load = async () => {
+      try {
+        const res = await fetchMessages();
+        setMessages(res.data);
+      } catch (err) {
+        console.error('Failed to fetch messages:', err);
+        setError('Failed to load messages.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
   }, []);
 
-  const handleDelete = async (messageId) => {
-    const confirmed = window.confirm('Are you sure you want to delete this message?');
-    if (!confirmed) return;
+  const { page, setPage, totalPages, pageItems } = usePagination(messages, 8);
 
+  const handleDelete = async (messageId, name) => {
+    const ok = await confirm({
+      title: 'Delete message?',
+      message: `This will permanently delete the message from ${name || 'this contact'}.`,
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
+
+    setDeletingId(messageId);
     try {
       await deleteMessageById(messageId);
-      setMessages(messages.filter(msg => msg._id !== messageId));
-      alert('Message deleted successfully.');
-    } catch (error) {
-      alert('Failed to delete message.');
-      console.error(error);
+      setMessages((prev) => prev.filter((msg) => msg._id !== messageId));
+      toast.success('Message deleted successfully.');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to delete message.');
+    } finally {
+      setDeletingId(null);
     }
   };
 
   return (
-    <div className="container mt-4">
-      <h2 className="mb-4">All Messages</h2>
+    <div className="page-shell">
+      <PageHeader title="All Messages" description="Submissions from the storefront contact form." />
 
-      {messages.length === 0 ? (
-        <div className="alert alert-info">No messages found.</div>
+      {error ? (
+        <div className="alert-banner alert-banner-danger">
+          <i className="bi bi-exclamation-circle" aria-hidden="true" />
+          {error}
+        </div>
+      ) : loading ? (
+        <CardListSkeleton count={3} />
+      ) : messages.length === 0 ? (
+        <EmptyState icon="bi-chat-dots" title="No messages found" description="Contact form submissions will appear here." />
       ) : (
-        messages.map((msg) => (
-          <div
-            key={msg._id}
-            className="card shadow-sm mb-3"
-            style={{ borderLeft: '5px solid #1d4ed8' }} // Removed position: relative here
-          >
-            <div
-              className="card-body"
-              style={{ position: 'relative' }} // Add position relative here
-            >
-              <h5 className="card-title mb-2">{msg.name}</h5>
-              <h6 className="card-subtitle mb-2 text-muted">{msg.email}</h6>
-              <p className="card-text">{msg.content}</p>
-
-              <button
-                onClick={() => handleDelete(msg._id)}
-                className="btn btn-danger position-absolute"
-                style={{ top: '15px', right: '15px' }}
-              >
-                Delete
-              </button>
-            </div>
+        <>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+            {pageItems.map((msg) => (
+              <Card key={msg._id}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--space-3)' }}>
+                  <div style={{ minWidth: 0 }}>
+                    <p className="dt-row-title" style={{ marginBottom: '0.15rem' }}>{msg.name}</p>
+                    <p className="dt-row-subtitle" style={{ marginBottom: '0.6rem' }}>{msg.email}</p>
+                    <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--color-text)' }}>{msg.content}</p>
+                  </div>
+                  <Button
+                    variant="danger-ghost"
+                    size="sm"
+                    loading={deletingId === msg._id}
+                    onClick={() => handleDelete(msg._id, msg.name)}
+                    icon={<i className="bi bi-trash3" aria-hidden="true" />}
+                    iconOnly
+                    aria-label="Delete message"
+                  />
+                </div>
+              </Card>
+            ))}
           </div>
-        ))
+
+          <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalItems={messages.length} pageSize={8} />
+        </>
       )}
     </div>
   );

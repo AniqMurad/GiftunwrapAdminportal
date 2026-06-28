@@ -1,0 +1,113 @@
+.dt-wrap {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+.dt-scroll {
+  overflow-x: auto;
+}
+.dt-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+.dt-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--color-surface-muted);
+  text-align: left;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+  z-index: 1;
+}
+.dt-table tbody td {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text);
+  vertical-align: middle;
+}
+.dt-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.dt-table tbody tr {
+  transition: background-color var(--transition-fast);
+}
+.dt-table tbody tr:hover {
+  background: var(--color-surface-muted);
+}
+.dt-table .text-right { text-align: right; }
+.dt-table .text-center { text-align: center; }
+.dt-table .nowrap { white-space: nowrap; }
+.dt-table .col-actions {
+  white-space: nowrap;
+  text-align: right;
+}
+.dt-thumb {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  display: block;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-muted);
+}
+.dt-row-title {
+  font-weight: 600;
+  color: var(--color-text);
+}
+.dt-row-subtitle {
+  font-size: 0.78rem;
+  color: var(--color-text-subtle);
+  margin-top: 0.15rem;
+}
+.dt-action-group {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.dt-skeleton-row td {
+  padding: var(--space-3) var(--space-4);
+}
+
+@media (max-width: 768px) {
+  .dt-table thead {
+    display: none;
+  }
+  .dt-table tbody tr {
+    display: block;
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 8px solid var(--color-bg);
+  }
+  .dt-table tbody td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    border-bottom: none;
+    padding: 0.4rem 0;
+    text-align: right;
+  }
+  .dt-table tbody td::before {
+    content: attr(data-label);
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--color-text-subtle);
+    text-align: left;
+    margin-right: var(--space-3);
+  }
+  .dt-table tbody td.col-actions {
+    justify-content: flex-end;
+  }
+  .dt-table tbody td.col-actions::before {
+    display: none;
+  }
+}

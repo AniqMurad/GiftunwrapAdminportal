@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   fetchGiftBoxItems,
   createGiftBoxItem,
@@ -6,12 +6,54 @@ import {
   deleteGiftBoxItem,
   toggleGiftBoxItemStock,
 } from '../api';
+import {
+  PageHeader,
+  Card,
+  Input,
+  Textarea,
+  Select,
+  Field,
+  ImageDropzone,
+  Button,
+  Badge,
+  EmptyState,
+  TableSkeleton,
+  Pagination,
+  usePagination,
+  useToast,
+  useConfirm,
+} from '../components/ui';
+
+const categories = [
+  'chocolates-snacks',
+  'flowers',
+  'customised-items',
+  'jewellery-accessories',
+  'fragrances',
+  'clothing',
+  'shoes',
+  'beauty-personal-care'
+];
+
+const categoryLabels = {
+  'chocolates-snacks': 'Chocolates & Snacks',
+  'flowers': 'Flowers',
+  'customised-items': 'Customised Items',
+  'jewellery-accessories': 'Jewellery & Accessories',
+  'fragrances': 'Fragrances',
+  'clothing': 'Clothing',
+  'shoes': 'Shoes',
+  'beauty-personal-care': 'Beauty & Personal Care'
+};
 
 const GiftBoxItems = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
+  const [togglingId, setTogglingId] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
     price: '',
@@ -20,50 +62,30 @@ const GiftBoxItems = () => {
     description: '',
     colorVariants: []
   });
-
-  const categories = [
-    'chocolates-snacks',
-    'flowers',
-    'customised-items',
-    'jewellery-accessories',
-    'fragrances',
-    'clothing',
-    'shoes',
-    'beauty-personal-care'
-  ];
-
-  const categoryLabels = {
-    'chocolates-snacks': 'Chocolates & Snacks',
-    'flowers': 'Flowers',
-    'customised-items': 'Customised Items',
-    'jewellery-accessories': 'Jewellery & Accessories',
-    'fragrances': 'Fragrances',
-    'clothing': 'Clothing',
-    'shoes': 'Shoes',
-    'beauty-personal-care': 'Beauty & Personal Care'
-  };
+  const toast = useToast();
+  const confirm = useConfirm();
 
   useEffect(() => {
     fetchItems();
   }, []);
 
+  const { page, setPage, totalPages, pageItems } = usePagination(items, 8);
+
   const fetchItems = async () => {
     try {
       const response = await fetchGiftBoxItems();
       setItems(response.data);
-      setLoading(false);
     } catch (error) {
       console.error('Error fetching items:', error);
+      toast.error('Failed to load gift box items');
+    } finally {
       setLoading(false);
     }
   };
 
   const handleInputChange = (e) => {
-    const { name, value, files, type } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'file' ? (files?.[0] || null) : value
-    }));
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const addColorVariant = () => {
@@ -114,27 +136,30 @@ const GiftBoxItems = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (!editingItem && !formData.imageFile) {
+      toast.error('Please select an image file.');
+      return;
+    }
+
+    setSubmitting(true);
     try {
       const payload = buildMultipartFormData();
 
       if (editingItem) {
         await updateGiftBoxItem(editingItem.id, payload);
-        alert('Item updated successfully!');
+        toast.success('Item updated successfully!');
       } else {
-        if (!formData.imageFile) {
-          alert('Please select an image file.');
-          return;
-        }
-
         await createGiftBoxItem(payload);
-        alert('Item created successfully!');
+        toast.success('Item created successfully!');
       }
 
       resetForm();
       fetchItems();
     } catch (error) {
       console.error('Error saving item:', error);
-      alert('Failed to save item');
+      toast.error('Failed to save item');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -155,26 +180,38 @@ const GiftBoxItems = () => {
     setShowForm(true);
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this item?')) {
-      try {
-        await deleteGiftBoxItem(id);
-        alert('Item deleted successfully!');
-        fetchItems();
-      } catch (error) {
-        console.error('Error deleting item:', error);
-        alert('Failed to delete item');
-      }
+  const handleDelete = async (id, name) => {
+    const ok = await confirm({
+      title: 'Delete item?',
+      message: `This will permanently remove "${name}" from gift box items.`,
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
+
+    setDeletingId(id);
+    try {
+      await deleteGiftBoxItem(id);
+      toast.success('Item deleted successfully!');
+      fetchItems();
+    } catch (error) {
+      console.error('Error deleting item:', error);
+      toast.error('Failed to delete item');
+    } finally {
+      setDeletingId(null);
     }
   };
 
   const toggleStock = async (id) => {
+    setTogglingId(id);
     try {
       await toggleGiftBoxItemStock(id);
-      fetchItems();
+      await fetchItems();
     } catch (error) {
       console.error('Error toggling stock:', error);
-      alert('Failed to toggle stock status');
+      toast.error('Failed to toggle stock status');
+    } finally {
+      setTogglingId(null);
     }
   };
 
@@ -191,257 +228,160 @@ const GiftBoxItems = () => {
     setShowForm(false);
   };
 
-  if (loading) {
-    return <div className="tw-scope p-8">Loading...</div>;
-  }
-
   return (
-    <div className="tw-scope p-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Gift Box Items</h1>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="bg-black text-white px-6 py-2 rounded-lg hover:bg-gray-800"
-        >
-          {showForm ? 'Cancel' : 'Add New Item'}
-        </button>
-      </div>
+    <div className="page-shell">
+      <PageHeader
+        title="Gift Box Items"
+        description="Items customers can choose from when building a gift box."
+        actions={
+          <Button variant={showForm ? 'secondary' : 'primary'} onClick={() => (showForm ? resetForm() : setShowForm(true))}>
+            {showForm ? 'Cancel' : 'Add New Item'}
+          </Button>
+        }
+      />
 
       {showForm && (
-        <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-          <h2 className="text-xl font-semibold mb-4">
+        <Card className="form-section" bodyClassName="">
+          <h2 style={{ margin: '0 0 var(--space-4)', fontSize: '1.1rem', fontWeight: 700 }}>
             {editingItem ? 'Edit Item' : 'Add New Item'}
           </h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Name *</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Price *</label>
-                <input
-                  type="number"
-                  name="price"
-                  value={formData.price}
-                  onChange={handleInputChange}
-                  required
-                  step="0.01"
-                  className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Category *</label>
-                <select
-                  name="category"
-                  value={formData.category}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
-                >
-                  {categories.map(cat => (
-                    <option key={cat} value={cat}>{categoryLabels[cat]}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Image {editingItem ? '(optional)' : '*'}
-                </label>
-                <input
-                  type="file"
-                  name="imageFile"
-                  onChange={handleInputChange}
-                  required={!editingItem}
-                  accept="image/*"
-                  className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
-                />
-                {editingItem && (
-                  <div className="mt-2 flex items-center gap-3">
-                    <span className="text-xs text-gray-500">Current image:</span>
-                    <img
-                      src={editingItem.image}
-                      alt={editingItem.name}
-                      className="h-10 w-10 object-cover rounded"
-                    />
-                  </div>
-                )}
-              </div>
+          <form onSubmit={handleSubmit}>
+            <div className="field-row">
+              <Input label="Name" required name="name" value={formData.name} onChange={handleInputChange} />
+              <Input label="Price" type="number" required step="0.01" name="price" value={formData.price} onChange={handleInputChange} />
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Description</label>
-              <textarea
-                name="description"
-                value={formData.description}
-                onChange={handleInputChange}
-                rows="3"
-                className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
-              />
+            <div className="field-row">
+              <Select label="Category" required name="category" value={formData.category} onChange={handleInputChange}>
+                {categories.map(cat => (
+                  <option key={cat} value={cat}>{categoryLabels[cat]}</option>
+                ))}
+              </Select>
+              <Textarea label="Description" name="description" rows="3" value={formData.description} onChange={handleInputChange} />
             </div>
 
-            {/* Color Variants */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-medium">Color Variants (optional)</label>
-                <button
-                  type="button"
-                  onClick={addColorVariant}
-                  className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg font-medium"
-                >
-                  + Add Color
-                </button>
-              </div>
-              <div className="space-y-3">
+            <ImageDropzone
+              label="Item Image"
+              required={!editingItem}
+              files={formData.imageFile ? [formData.imageFile] : []}
+              onFilesChange={(files) => setFormData(prev => ({ ...prev, imageFile: files[0] || null }))}
+              existingImages={!formData.imageFile && editingItem?.image ? [editingItem.image] : []}
+              help={editingItem ? 'Upload a new image to replace the current one.' : undefined}
+            />
+
+            <Field label="Color Variants (optional)">
+              <Button type="button" variant="secondary" size="sm" onClick={addColorVariant} style={{ marginBottom: 'var(--space-3)' }}>
+                + Add Color
+              </Button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
                 {formData.colorVariants.map((variant, idx) => (
-                  <div key={idx} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-semibold text-gray-500">Color {idx + 1}</span>
-                      <button
-                        type="button"
-                        onClick={() => removeColorVariant(idx)}
-                        className="text-xs text-red-500 hover:text-red-700 font-medium"
-                      >
+                  <div key={idx} style={{ border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: 'var(--space-3)', background: 'var(--color-surface-muted)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-subtle)' }}>Color {idx + 1}</span>
+                      <Button type="button" variant="danger-ghost" size="sm" onClick={() => removeColorVariant(idx)}>
                         Remove
-                      </button>
+                      </Button>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Color Name *</label>
-                        <input
-                          type="text"
-                          value={variant.color}
-                          onChange={(e) => handleColorVariantChange(idx, 'color', e.target.value)}
-                          placeholder="e.g. Red, Blue, Black…"
-                          className="w-full border border-gray-300 px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">
-                          Image {variant.existingImage ? '(upload to replace)' : '*'}
-                        </label>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => handleColorVariantChange(idx, 'imageFile', e.target.files?.[0] || null)}
-                          className="w-full border border-gray-300 px-3 py-1.5 rounded-lg text-sm bg-white file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-gray-100"
-                        />
-                        {variant.existingImage && !variant.imageFile && (
-                          <div className="mt-1 flex items-center gap-2">
-                            <img src={variant.existingImage} alt={variant.color} className="h-8 w-10 object-cover rounded border" />
-                            <span className="text-xs text-gray-400">Current</span>
-                          </div>
-                        )}
-                      </div>
+                    <div className="field-row">
+                      <Input
+                        label="Color Name"
+                        required
+                        placeholder="e.g. Red, Blue, Black…"
+                        value={variant.color}
+                        onChange={(e) => handleColorVariantChange(idx, 'color', e.target.value)}
+                      />
+                      <ImageDropzone
+                        label={variant.existingImage ? 'Image (upload to replace)' : 'Image'}
+                        required={!variant.existingImage}
+                        compact
+                        files={variant.imageFile ? [variant.imageFile] : []}
+                        onFilesChange={(files) => handleColorVariantChange(idx, 'imageFile', files[0] || null)}
+                        existingImages={!variant.imageFile && variant.existingImage ? [variant.existingImage] : []}
+                      />
                     </div>
                   </div>
                 ))}
               </div>
-            </div>
+            </Field>
 
-            <div className="flex gap-4">
-              <button
-                type="submit"
-                className="bg-black text-white px-6 py-2 rounded-lg hover:bg-gray-800"
-              >
+            <div className="form-actions">
+              <Button type="submit" loading={submitting}>
                 {editingItem ? 'Update' : 'Create'}
-              </button>
-              <button
-                type="button"
-                onClick={resetForm}
-                className="bg-gray-300 text-black px-6 py-2 rounded-lg hover:bg-gray-400"
-              >
+              </Button>
+              <Button type="button" variant="secondary" onClick={resetForm} disabled={submitting}>
                 Cancel
-              </button>
+              </Button>
             </div>
           </form>
-        </div>
+        </Card>
       )}
 
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Image
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Name
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Category
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Price
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {items.map((item) => (
-              <tr key={item.id}>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <img src={item.image} alt={item.name} className="h-10 w-10 object-cover rounded" />
-                  {item.colorVariants?.length > 0 && (
-                    <div className="flex gap-1 mt-1 flex-wrap">
-                      {item.colorVariants.map((v, i) => (
-                        <img
-                          key={i}
-                          src={v.image}
-                          alt={v.color}
-                          title={v.color}
-                          className="h-6 w-6 object-cover rounded-full border border-gray-300"
-                        />
-                      ))}
-                    </div>
-                  )}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">{item.name}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{categoryLabels[item.category] || item.category}</td>
-                <td className="px-6 py-4 whitespace-nowrap">PKR {item.price.toFixed(2)}</td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                    item.inStock ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                  }`}>
-                    {item.inStock ? 'In Stock' : 'Out of Stock'}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <button
-                    onClick={() => handleEdit(item)}
-                    className="text-indigo-600 hover:text-indigo-900 mr-4"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => toggleStock(item.id)}
-                    className="text-yellow-600 hover:text-yellow-900 mr-4"
-                  >
-                    Toggle Stock
-                  </button>
-                  <button
-                    onClick={() => handleDelete(item.id)}
-                    className="text-red-600 hover:text-red-900"
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {loading ? (
+        <div className="dt-wrap">
+          <div className="dt-scroll">
+            <table className="dt-table">
+              <tbody>
+                <TableSkeleton rows={6} columns={6} />
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : items.length === 0 ? (
+        <EmptyState icon="bi-box-seam" title="No gift box items found" description="Items you add will appear here." />
+      ) : (
+        <>
+          <div className="dt-wrap">
+            <div className="dt-scroll">
+              <table className="dt-table">
+                <thead>
+                  <tr>
+                    <th>Image</th>
+                    <th>Name</th>
+                    <th>Category</th>
+                    <th>Price</th>
+                    <th>Status</th>
+                    <th className="col-actions">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageItems.map((item) => (
+                    <tr key={item.id}>
+                      <td data-label="Image">
+                        <img src={item.image} alt={item.name} className="dt-thumb" />
+                        {item.colorVariants?.length > 0 && (
+                          <div style={{ display: 'flex', gap: '0.25rem', marginTop: '0.3rem', flexWrap: 'wrap' }}>
+                            {item.colorVariants.map((v, i) => (
+                              <img key={i} src={v.image} alt={v.color} title={v.color} style={{ width: 20, height: 20, borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--color-border-strong)' }} />
+                            ))}
+                          </div>
+                        )}
+                      </td>
+                      <td data-label="Name">{item.name}</td>
+                      <td data-label="Category">{categoryLabels[item.category] || item.category}</td>
+                      <td data-label="Price">PKR {item.price.toFixed(2)}</td>
+                      <td data-label="Status">
+                        <Badge variant={item.inStock ? 'success' : 'danger'}>{item.inStock ? 'In Stock' : 'Out of Stock'}</Badge>
+                      </td>
+                      <td className="col-actions" data-label="Actions">
+                        <div className="dt-action-group">
+                          <Button variant="secondary" size="sm" onClick={() => handleEdit(item)}>Edit</Button>
+                          <Button variant="secondary" size="sm" loading={togglingId === item.id} onClick={() => toggleStock(item.id)}>
+                            Toggle Stock
+                          </Button>
+                          <Button variant="danger-ghost" size="sm" loading={deletingId === item.id} onClick={() => handleDelete(item.id, item.name)}>
+                            Delete
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalItems={items.length} pageSize={8} />
+        </>
+      )}
     </div>
   );
 };
