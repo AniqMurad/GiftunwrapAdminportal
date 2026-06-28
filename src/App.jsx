@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
-import { ToastProvider, ConfirmProvider, Button, Input } from './components/UI';
+import { ToastProvider, ConfirmProvider, Button, Input } from './components/ui';
 //comment
 const Users = lazy(() => import('./pages/Users'));
 const Products = lazy(() => import('./pages/Products'));
