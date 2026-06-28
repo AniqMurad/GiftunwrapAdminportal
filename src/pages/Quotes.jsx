@@ -1,11 +1,43 @@
 import { useEffect, useState } from 'react';
 import { fetchQuotes, deleteQuote, updateQuoteStatus } from '../api';
+import {
+  PageHeader,
+  EmptyState,
+  TableSkeleton,
+  Pagination,
+  usePagination,
+  Button,
+  Badge,
+  Modal,
+  useToast,
+  useConfirm,
+} from '../components/ui';
+
+const quoteStatuses = ['pending', 'contacted', 'quoted', 'closed'];
+
+const STATUS_VARIANT = {
+  pending: 'warning',
+  contacted: 'info',
+  quoted: 'primary',
+  closed: 'neutral',
+};
+
+const FILTERS = [
+  { key: 'all', label: 'All' },
+  { key: 'pending', label: 'Pending' },
+  { key: 'contacted', label: 'Contacted' },
+  { key: 'quoted', label: 'Quoted' },
+];
 
 export default function Quotes() {
   const [quotes, setQuotes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all'); // all, pending, contacted, quoted, closed
-  const quoteStatuses = ['pending', 'contacted', 'quoted', 'closed'];
+  const [filter, setFilter] = useState('all');
+  const [deletingId, setDeletingId] = useState(null);
+  const [updatingId, setUpdatingId] = useState(null);
+  const [viewingQuote, setViewingQuote] = useState(null);
+  const toast = useToast();
+  const confirm = useConfirm();
 
   useEffect(() => {
     loadQuotes();
@@ -18,208 +50,196 @@ export default function Quotes() {
       setQuotes(res.data.data || []);
     } catch (error) {
       console.error('Failed to fetch quotes:', error);
-      alert('Failed to load quotes');
+      toast.error('Failed to load quotes');
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async (quoteId) => {
-    const confirmed = window.confirm('Are you sure you want to delete this quote request?');
-    if (!confirmed) return;
+    const ok = await confirm({
+      title: 'Delete quote request?',
+      message: 'This will permanently remove this corporate quote request.',
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
 
+    setDeletingId(quoteId);
     try {
       await deleteQuote(quoteId);
-      setQuotes(quotes.filter(quote => quote._id !== quoteId));
-      alert('Quote deleted successfully.');
+      setQuotes(quotes.filter((quote) => quote._id !== quoteId));
+      toast.success('Quote deleted successfully.');
     } catch (error) {
-      alert('Failed to delete quote.');
+      toast.error('Failed to delete quote.');
       console.error(error);
+    } finally {
+      setDeletingId(null);
     }
   };
 
   const handleStatusChange = async (quoteId, newStatus) => {
+    setUpdatingId(quoteId);
     try {
       const response = await updateQuoteStatus(quoteId, newStatus);
-      setQuotes(quotes.map(quote =>
-        quote._id === quoteId ? response.data.data : quote
-      ));
-      alert(`Quote status updated to ${newStatus}.`);
+      setQuotes(quotes.map((quote) => (quote._id === quoteId ? response.data.data : quote)));
+      toast.success(`Quote status updated to ${newStatus}.`);
     } catch (error) {
-      alert('Failed to update quote status.');
+      toast.error('Failed to update quote status.');
       console.error(error);
+    } finally {
+      setUpdatingId(null);
     }
   };
 
-  const filteredQuotes = filter === 'all' 
-    ? quotes 
-    : quotes.filter(quote => quote.status === filter);
-
-  const getStatusBadgeColor = (status) => {
-    switch (status) {
-      case 'pending': return 'bg-warning';
-      case 'contacted': return 'bg-info';
-      case 'quoted': return 'bg-primary';
-      case 'closed': return 'bg-secondary';
-      default: return 'bg-secondary';
-    }
-  };
+  const filteredQuotes = filter === 'all' ? quotes : quotes.filter((quote) => quote.status === filter);
+  const { page, setPage, totalPages, pageItems } = usePagination(filteredQuotes, 8);
 
   return (
-    <div className="container mt-4">
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2>Corporate Quote Requests</h2>
-        <div className="btn-group">
-          <button 
-            className={`btn btn-sm ${filter === 'all' ? 'btn-dark' : 'btn-outline-dark'}`}
-            onClick={() => setFilter('all')}
+    <div className="page-shell">
+      <PageHeader
+        title="Corporate Quote Requests"
+        description="Bulk order quote requests submitted by businesses."
+      />
+
+      <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', marginBottom: 'var(--space-5)' }}>
+        {FILTERS.map((f) => (
+          <Button
+            key={f.key}
+            size="sm"
+            variant={filter === f.key ? 'primary' : 'secondary'}
+            onClick={() => {
+              setFilter(f.key);
+              setPage(1);
+            }}
           >
-            All ({quotes.length})
-          </button>
-          <button 
-            className={`btn btn-sm ${filter === 'pending' ? 'btn-warning' : 'btn-outline-warning'}`}
-            onClick={() => setFilter('pending')}
-          >
-            Pending ({quotes.filter(q => q.status === 'pending').length})
-          </button>
-          <button 
-            className={`btn btn-sm ${filter === 'contacted' ? 'btn-info' : 'btn-outline-info'}`}
-            onClick={() => setFilter('contacted')}
-          >
-            Contacted ({quotes.filter(q => q.status === 'contacted').length})
-          </button>
-          <button 
-            className={`btn btn-sm ${filter === 'quoted' ? 'btn-primary' : 'btn-outline-primary'}`}
-            onClick={() => setFilter('quoted')}
-          >
-            Quoted ({quotes.filter(q => q.status === 'quoted').length})
-          </button>
-        </div>
+            {f.label} ({f.key === 'all' ? quotes.length : quotes.filter((q) => q.status === f.key).length})
+          </Button>
+        ))}
       </div>
 
       {loading ? (
-        <div className="text-center py-5">
-          <div className="spinner-border" role="status">
-            <span className="visually-hidden">Loading...</span>
+        <div className="dt-wrap">
+          <div className="dt-scroll">
+            <table className="dt-table">
+              <tbody>
+                <TableSkeleton rows={6} columns={6} />
+              </tbody>
+            </table>
           </div>
         </div>
       ) : filteredQuotes.length === 0 ? (
-        <div className="alert alert-info">
-          {filter === 'all' ? 'No quote requests found.' : `No ${filter} quotes found.`}
-        </div>
+        <EmptyState
+          icon="bi-file-earmark-text"
+          title="No quote requests found"
+          description={filter === 'all' ? 'Quote requests will appear here.' : `No ${filter} quotes found.`}
+        />
       ) : (
-        <div className="table-responsive">
-          <table className="table table-hover">
-            <thead className="table-light">
-              <tr>
-                <th>Product</th>
-                <th>Company</th>
-                <th>Contact Info</th>
-                <th>Quantity</th>
-                <th>Status</th>
-                <th>Date</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredQuotes.map((quote) => (
-                <tr key={quote._id}>
-                  <td>
-                    <div className="d-flex align-items-center">
-                      {quote.productImage && (
-                        <img 
-                          src={quote.productImage} 
-                          alt={quote.productName}
-                          style={{ width: '50px', height: '50px', objectFit: 'cover' }}
-                          className="rounded me-2"
-                        />
-                      )}
-                      <div>
-                        <div className="fw-semibold">{quote.productName}</div>
-                        <small className="text-muted">ID: {quote.productId}</small>
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    <div className="fw-semibold">{quote.companyName}</div>
-                  </td>
-                  <td>
-                    <div>
-                      <small className="d-block">
-                        📧 {quote.email}
-                      </small>
-                      {quote.phoneNumber && (
-                        <small className="d-block">
-                          📱 {quote.phoneNumber}
-                        </small>
-                      )}
-                    </div>
-                  </td>
-                  <td>
-                    <span className="badge bg-dark">{quote.quantity} units</span>
-                  </td>
-                  <td>
-                    <select
-                      className={`form-select form-select-sm badge ${getStatusBadgeColor(quote.status)}`}
-                      value={quote.status}
-                      onChange={(e) => handleStatusChange(quote._id, e.target.value)}
-                      style={{ width: 'auto', color: 'white', border: 'none' }}
-                    >
-                      {quoteStatuses.map(status => (
-                        <option key={status} value={status}>
-                          {status.charAt(0).toUpperCase() + status.slice(1)}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td>
-                    <small>{new Date(quote.createdAt).toLocaleDateString()}</small>
-                  </td>
-                  <td>
-                    <div className="btn-group">
-                      <button
-                        className="btn btn-sm btn-outline-primary"
-                        onClick={() => {
-                          const message = `
-Quote Request Details:
+        <>
+          <div className="dt-wrap">
+            <div className="dt-scroll">
+              <table className="dt-table">
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <th>Company</th>
+                    <th>Contact Info</th>
+                    <th>Quantity</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                    <th className="col-actions">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageItems.map((quote) => (
+                    <tr key={quote._id}>
+                      <td data-label="Product">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                          {quote.productImage && <img src={quote.productImage} alt={quote.productName} className="dt-thumb" />}
+                          <div>
+                            <div className="dt-row-title">{quote.productName}</div>
+                            <div className="dt-row-subtitle">ID: {quote.productId}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td data-label="Company">
+                        <span className="dt-row-title">{quote.companyName}</span>
+                      </td>
+                      <td data-label="Contact">
+                        <div className="dt-row-subtitle">{quote.email}</div>
+                        {quote.phoneNumber && <div className="dt-row-subtitle">{quote.phoneNumber}</div>}
+                      </td>
+                      <td data-label="Quantity">
+                        <Badge variant="neutral">{quote.quantity} units</Badge>
+                      </td>
+                      <td data-label="Status">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                          <Badge variant={STATUS_VARIANT[quote.status] || 'neutral'}>{quote.status}</Badge>
+                          <select
+                            className="select"
+                            style={{ width: 'auto', padding: '0.3rem 0.5rem', fontSize: '0.78rem' }}
+                            value={quote.status}
+                            disabled={updatingId === quote._id}
+                            onChange={(e) => handleStatusChange(quote._id, e.target.value)}
+                            aria-label={`Change status for quote from ${quote.companyName}`}
+                          >
+                            {quoteStatuses.map((status) => (
+                              <option key={status} value={status}>
+                                {status.charAt(0).toUpperCase() + status.slice(1)}
+                              </option>
+                            ))}
+                          </select>
+                          {updatingId === quote._id && <span className="spinner spinner-dark" style={{ width: 12, height: 12 }} />}
+                        </div>
+                      </td>
+                      <td data-label="Date">
+                        <span className="dt-row-subtitle">{new Date(quote.createdAt).toLocaleDateString()}</span>
+                      </td>
+                      <td className="col-actions" data-label="Actions">
+                        <div className="dt-action-group">
+                          <Button variant="secondary" size="sm" onClick={() => setViewingQuote(quote)}>
+                            View
+                          </Button>
+                          <Button
+                            variant="danger-ghost"
+                            size="sm"
+                            loading={deletingId === quote._id}
+                            onClick={() => handleDelete(quote._id)}
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
 
-Product: ${quote.productName}
-Company: ${quote.companyName}
-Email: ${quote.email}
-${quote.phoneNumber ? `Phone: ${quote.phoneNumber}` : ''}
-Quantity: ${quote.quantity} units
-Status: ${quote.status}
-Date: ${new Date(quote.createdAt).toLocaleString()}
-
-${quote.additionalRequirements ? `Additional Requirements:\n${quote.additionalRequirements}` : ''}
-                          `.trim();
-                          alert(message);
-                        }}
-                      >
-                        View
-                      </button>
-                      <button
-                        className="btn btn-sm btn-outline-danger"
-                        onClick={() => handleDelete(quote._id)}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+          <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalItems={filteredQuotes.length} pageSize={8} />
+        </>
       )}
 
-      {filteredQuotes.length > 0 && (
-        <div className="mt-3">
-          <small className="text-muted">
-            Showing {filteredQuotes.length} of {quotes.length} total quote requests
-          </small>
-        </div>
-      )}
+      <Modal open={!!viewingQuote} onClose={() => setViewingQuote(null)} title="Quote Request Details">
+        {viewingQuote && (
+          <div>
+            <p className="detail-row"><strong>Product:</strong> {viewingQuote.productName}</p>
+            <p className="detail-row"><strong>Company:</strong> {viewingQuote.companyName}</p>
+            <p className="detail-row"><strong>Email:</strong> {viewingQuote.email}</p>
+            {viewingQuote.phoneNumber && <p className="detail-row"><strong>Phone:</strong> {viewingQuote.phoneNumber}</p>}
+            <p className="detail-row"><strong>Quantity:</strong> {viewingQuote.quantity} units</p>
+            <p className="detail-row"><strong>Status:</strong> {viewingQuote.status}</p>
+            <p className="detail-row"><strong>Date:</strong> {new Date(viewingQuote.createdAt).toLocaleString()}</p>
+            {viewingQuote.additionalRequirements && (
+              <>
+                <p className="detail-section-title" style={{ marginTop: 'var(--space-3)' }}>Additional Requirements</p>
+                <p className="detail-row">{viewingQuote.additionalRequirements}</p>
+              </>
+            )}
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

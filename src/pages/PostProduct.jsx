@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { postProduct } from '../api'; // Assuming your api.js
+import { postProduct } from '../api';
+import { PageHeader, Card, Input, Textarea, Select, ImageDropzone, Button, useToast } from '../components/ui';
 
-// Category and KeyGift map (Keep as is)
 const categoryOptions = {
-    //birthday: ['his birthday', 'her birthday', 'employee birthday', 'baby birthday'],
     giftsForCompany: ['newhire', 'ocassion', 'farewell', 'achievement', 'workanniversary'],
     giftsForReligions: ['eid', 'holi', 'diwali', 'navroz', 'ramadan'],
     giftsForBabies: ['newborn'],
@@ -14,31 +13,12 @@ const categoryOptions = {
     FlowersChocolates: ['cake', 'bouquets', 'cakebouquets'],
 };
 
-const inputStyle = {
-    padding: '10px',
-    borderRadius: '6px',
-    border: '1px solid #ccc',
-    fontSize: '1rem',
-    width: '100%',
-    boxSizing: 'border-box',
-};
-
-const textareaStyle = {
-    ...inputStyle,
-    minHeight: '80px',
-    resize: 'vertical',
-};
-
-const selectStyle = {
-    ...inputStyle,
-    backgroundColor: '#fff',
-    cursor: 'pointer',
-};
-
 export default function PostProduct() {
     const MAX_UPLOAD_BYTES = 4 * 1024 * 1024; // Keep request under common serverless body limits
     const TARGET_IMAGE_BYTES = 900 * 1024;
     const MAX_IMAGE_DIMENSION = 1600;
+
+    const toast = useToast();
 
     const [form, setForm] = useState({
         category: '',
@@ -57,7 +37,6 @@ export default function PostProduct() {
             }
         ]
     });
-    // State to hold selected image files, initialize as an empty array
     const [productImages, setProductImages] = useState([]);
     const [isPosting, setIsPosting] = useState(false);
 
@@ -156,18 +135,6 @@ export default function PostProduct() {
         }));
     };
 
-    // Handle image file selection
-    const handleImageFileChange = (e) => {
-        const files = Array.from(e.target.files);
-        // Limit to a maximum of 4 files
-        if (files.length > 4) {
-            alert('You can only upload a maximum of 4 images per product.');
-            setProductImages(files.slice(0, 4)); // Take only the first 4
-        } else {
-            setProductImages(files);
-        }
-    };
-
     const handleSubmit = async (e) => {
         e.preventDefault();
 
@@ -175,14 +142,8 @@ export default function PostProduct() {
             return;
         }
 
-        // Basic validation for images
         if (productImages.length === 0) {
-            alert('Please upload at least one image for the product.');
-            return;
-        }
-        if (productImages.length > 4) {
-            // This case should ideally be caught by handleImageFileChange, but double-check
-            alert('You can only upload a maximum of 4 images per product.');
+            toast.error('Please upload at least one image for the product.');
             return;
         }
 
@@ -203,18 +164,16 @@ export default function PostProduct() {
             const { files: preparedFiles, totalBytes } = await prepareImagesForUpload(productImages);
 
             if (totalBytes > MAX_UPLOAD_BYTES) {
-                alert('Images are still too large for upload. Please use fewer images or smaller originals.');
+                toast.error('Images are still too large for upload. Please use fewer images or smaller originals.');
                 return;
             }
 
-            // Append processed image files
             preparedFiles.forEach((file) => {
                 formData.append('images', file); // 'images' must match multer field name
             });
 
-            await postProduct(formData); // Use the postProduct from api.js
-            alert('Product posted successfully!');
-            // Reset form and images after successful submission
+            await postProduct(formData);
+            toast.success('Product posted successfully!');
             setForm({
                 category: '',
                 products: [{
@@ -230,12 +189,10 @@ export default function PostProduct() {
                     metaDescription: '',
                 }]
             });
-            setProductImages([]); // Clear selected images
-            // To clear file input, you might need a ref or reset the form
-            e.target.reset(); // Resets the form elements
+            setProductImages([]);
         } catch (error) {
             console.error('Failed to post product:', error.response?.data || error);
-            alert('Failed to post product: ' + (error.response?.data?.message || error.message || 'Unknown error'));
+            toast.error('Failed to post product: ' + (error.response?.data?.message || error.message || 'Unknown error'));
         } finally {
             setIsPosting(false);
         }
@@ -244,190 +201,129 @@ export default function PostProduct() {
     const currentKeyGifts = categoryOptions[form.category] || [];
 
     return (
-        <div style={{ maxWidth: '700px', margin: 'auto', padding: '2rem' }}>
-            <h2 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>Post New Product</h2>
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                
+        <div className="page-shell" style={{ maxWidth: '780px' }}>
+            <PageHeader title="Post New Product" description="Add a new product to the storefront catalog." />
 
-                <select
-                    value={form.category}
-                    onChange={handleCategoryChange}
-                    style={selectStyle}
-                    required
-                >
-                    <option value="">Select Category</option>
-                    {Object.keys(categoryOptions).map((cat) => (
-                        <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                </select>
+            <Card>
+                <form onSubmit={handleSubmit}>
+                    <div className="field-row">
+                        <Select label="Category" required value={form.category} onChange={handleCategoryChange}>
+                            <option value="">Select Category</option>
+                            {Object.keys(categoryOptions).map((cat) => (
+                                <option key={cat} value={cat}>{cat}</option>
+                            ))}
+                        </Select>
 
-                <select
-                    name="keyGift"
-                    value={form.products[0].keyGift}
-                    onChange={handleProductChange}
-                    disabled={!form.category}
-                    style={selectStyle}
-                    required
-                >
-                    <option value="">Select Key Gift</option>
-                    {currentKeyGifts.map((keyGift) => (
-                        <option key={keyGift} value={keyGift}>{keyGift}</option>
-                    ))}
-                </select>
+                        <Select
+                            label="Key Gift"
+                            required
+                            name="keyGift"
+                            value={form.products[0].keyGift}
+                            onChange={handleProductChange}
+                            disabled={!form.category}
+                        >
+                            <option value="">Select Key Gift</option>
+                            {currentKeyGifts.map((keyGift) => (
+                                <option key={keyGift} value={keyGift}>{keyGift}</option>
+                            ))}
+                        </Select>
+                    </div>
 
-                <input
-                    type="text"
-                    name="name"
-                    placeholder="Product Name"
-                    value={form.products[0].name}
-                    onChange={handleProductChange}
-                    style={inputStyle}
-                    required
-                />
-
-                <input
-                    type="number"
-                    name="price"
-                    placeholder="Price"
-                    value={form.products[0].price}
-                    onChange={handleProductChange}
-                    style={inputStyle}
-                    required
-                />
-
-                <input
-                    type="number"
-                    name="originalPrice"
-                    placeholder="Original Price (Optional)"
-                    value={form.products[0].originalPrice}
-                    onChange={handleProductChange}
-                    style={inputStyle}
-                />
-                <input
-                    type="number"
-                    name="discount"
-                    placeholder="Discount (Optional)"
-                    value={form.products[0].discount}
-                    onChange={handleProductChange}
-                    style={inputStyle}
-                />
-                <input
-                    type="text"
-                    name="subcategory"
-                    placeholder="Subcategory (Optional)"
-                    value={form.products[0].subcategory}
-                    onChange={handleProductChange}
-                    style={inputStyle}
-                />
-
-                <textarea
-                    name="shortDescription"
-                    placeholder="Short Description"
-                    value={form.products[0].shortDescription}
-                    onChange={handleProductChange}
-                    style={textareaStyle}
-                />
-
-                <textarea
-                    name="longDescription"
-                    placeholder="Long Description"
-                    value={form.products[0].longDescription}
-                    onChange={handleProductChange}
-                    style={textareaStyle}
-                />
-
-                <input
-                    type="text"
-                    name="metaTitle"
-                    placeholder="Meta Title (SEO - Optional)"
-                    value={form.products[0].metaTitle}
-                    onChange={handleProductChange}
-                    style={inputStyle}
-                />
-
-                <textarea
-                    name="metaDescription"
-                    placeholder="Meta Description (SEO - Optional, max 160 characters)"
-                    value={form.products[0].metaDescription}
-                    onChange={handleProductChange}
-                    style={textareaStyle}
-                    maxLength="160"
-                />
-
-                <div>
-                    <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
-                        Product Images (Upload up to 4 images):
-                    </label>
-                    <input
-                        type="file"
-                        multiple
-                        accept="image/jpeg, image/png, image/jpg, image/webp"
-                        onChange={handleImageFileChange}
-                        style={{ ...inputStyle, border: 'none', padding: '0', cursor: 'pointer' }}
+                    <Input
+                        label="Product Name"
+                        required
+                        name="name"
+                        placeholder="e.g. Birthday Surprise Box"
+                        value={form.products[0].name}
+                        onChange={handleProductChange}
                     />
-                    {productImages.length > 0 && (
-                        <p style={{ marginTop: '0.5rem', fontSize: '0.9rem', color: '#555' }}>
-                            Selected {productImages.length} image(s).
-                        </p>
-                    )}
-                </div>
 
-                <button
-                    type="submit"
-                    disabled={isPosting}
-                    style={{
-                        padding: '0.75rem',
-                        backgroundColor: isPosting ? '#93c5fd' : '#1d4ed8',
-                        color: 'white',
-                        border: 'none',
-                        cursor: isPosting ? 'not-allowed' : 'pointer',
-                        borderRadius: '6px',
-                        fontWeight: 'bold',
-                        fontSize: '1rem',
-                        marginTop: '1rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '0.5rem',
-                        transition: 'background-color 0.3s ease',
-                        opacity: isPosting ? 0.9 : 1,
-                    }}
-                    onMouseEnter={e => {
-                        if (!isPosting) {
-                            e.currentTarget.style.backgroundColor = '#2563eb';
-                        }
-                    }}
-                    onMouseLeave={e => {
-                        e.currentTarget.style.backgroundColor = isPosting ? '#93c5fd' : '#1d4ed8';
-                    }}
-                >
-                    {isPosting && (
-                        <span
-                            aria-hidden="true"
-                            style={{
-                                width: '16px',
-                                height: '16px',
-                                border: '2px solid rgba(255, 255, 255, 0.5)',
-                                borderTopColor: '#fff',
-                                borderRadius: '50%',
-                                animation: 'spin 0.8s linear infinite',
-                            }}
+                    <div className="field-row">
+                        <Input
+                            label="Price"
+                            type="number"
+                            required
+                            name="price"
+                            value={form.products[0].price}
+                            onChange={handleProductChange}
                         />
-                    )}
-                    {isPosting ? 'Posting...' : 'Post Product'}
-                </button>
-            </form>
+                        <Input
+                            label="Original Price"
+                            type="number"
+                            name="originalPrice"
+                            placeholder="Optional"
+                            value={form.products[0].originalPrice}
+                            onChange={handleProductChange}
+                        />
+                    </div>
 
-            <style>{`
-                @keyframes spin {
-                    from {
-                        transform: rotate(0deg);
-                    }
-                    to {
-                        transform: rotate(360deg);
-                    }
-                }
-            `}</style>
+                    <div className="field-row">
+                        <Input
+                            label="Discount (%)"
+                            type="number"
+                            name="discount"
+                            placeholder="Optional"
+                            value={form.products[0].discount}
+                            onChange={handleProductChange}
+                        />
+                        <Input
+                            label="Subcategory"
+                            name="subcategory"
+                            placeholder="Optional"
+                            value={form.products[0].subcategory}
+                            onChange={handleProductChange}
+                        />
+                    </div>
+
+                    <Textarea
+                        label="Short Description"
+                        name="shortDescription"
+                        value={form.products[0].shortDescription}
+                        onChange={handleProductChange}
+                    />
+
+                    <Textarea
+                        label="Long Description"
+                        name="longDescription"
+                        value={form.products[0].longDescription}
+                        onChange={handleProductChange}
+                    />
+
+                    <Input
+                        label="Meta Title"
+                        name="metaTitle"
+                        placeholder="SEO — optional"
+                        value={form.products[0].metaTitle}
+                        onChange={handleProductChange}
+                    />
+
+                    <Textarea
+                        label="Meta Description"
+                        name="metaDescription"
+                        placeholder="SEO — optional, max 160 characters"
+                        value={form.products[0].metaDescription}
+                        onChange={handleProductChange}
+                        maxLength="160"
+                    />
+
+                    <ImageDropzone
+                        label="Product Images"
+                        required
+                        multiple
+                        maxFiles={4}
+                        accept="image/jpeg, image/png, image/jpg, image/webp"
+                        files={productImages}
+                        onFilesChange={setProductImages}
+                        help="Images are automatically compressed before upload. Up to 4 images."
+                    />
+
+                    <div className="form-actions">
+                        <Button type="submit" loading={isPosting} size="lg">
+                            {isPosting ? 'Posting...' : 'Post Product'}
+                        </Button>
+                    </div>
+                </form>
+            </Card>
         </div>
     );
 }

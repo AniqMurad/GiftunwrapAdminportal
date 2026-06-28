@@ -2,6 +2,8 @@ import { useState, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 import Sidebar from './components/Sidebar';
+import Topbar from './components/Topbar';
+import { ToastProvider, ConfirmProvider, Button, Input } from './components/ui';
 
 const Users = lazy(() => import('./pages/Users'));
 const Products = lazy(() => import('./pages/Products'));
@@ -15,116 +17,127 @@ const Quotes = lazy(() => import('./pages/Quotes'));
 const Blogs = lazy(() => import('./pages/Blogs'));
 const PostBlog = lazy(() => import('./pages/PostBlog'));
 
-function App() {
-  const [isAuth, setIsAuth] = useState(false);
+const ADMIN_ID = 'giftunwrapadmin';
+const ADMIN_PASS = '02012025';
+
+function LoginScreen({ onLogin }) {
   const [id, setId] = useState('');
   const [pass, setPass] = useState('');
   const [error, setError] = useState('');
 
-  const ADMIN_ID = 'giftunwrapadmin';
-  const ADMIN_PASS = '02012025';
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setError('');
 
-  const handleLogin = () => {
     if (id === ADMIN_ID && pass === ADMIN_PASS) {
-      setIsAuth(true);
+      onLogin();
     } else {
       setError('Wrong ID or Password');
     }
   };
 
-  if (!isAuth) {
-    return (
-      <div
-        style={{
-          height: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: '#0f172a',
-        }}
-      >
-        <div
-          style={{
-            background: '#020617',
-            padding: '30px',
-            borderRadius: '10px',
-            width: '320px',
-            boxShadow: '0 0 20px rgba(0,0,0,0.6)',
-          }}
-        >
-          <h3 style={{ color: '#fff', marginBottom: '15px' }}>
-            Admin Login
-          </h3>
+  return (
+    <div className="login-screen">
+      <div className="login-card">
+        <div className="login-icon">
+          <i className="bi bi-gift-fill" aria-hidden="true" />
+        </div>
+        <h3 className="login-title">Admin Login</h3>
+        <p className="login-subtitle">Sign in to manage GiftUnwrap</p>
 
-          <input
-            placeholder="Admin ID"
-            value={id}
-            onChange={(e) => setId(e.target.value)}
-            style={{ width: '100%', padding: '10px', marginBottom: '10px' }}
-          />
-
-          <input
-            type="password"
-            placeholder="Password"
-            value={pass}
-            onChange={(e) => setPass(e.target.value)}
-            style={{ width: '100%', padding: '10px', marginBottom: '10px' }}
-          />
-
+        <form onSubmit={handleSubmit}>
           {error && (
-            <div style={{ color: 'red', marginBottom: '10px' }}>
+            <div className="login-error" role="alert">
+              <i className="bi bi-exclamation-circle" aria-hidden="true" />
               {error}
             </div>
           )}
 
-          <button
-            onClick={handleLogin}
-            style={{
-              width: '100%',
-              padding: '10px',
-              background: '#2563eb',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-            }}
-          >
-            Login
-          </button>
-        </div>
-      </div>
-    );
-  }
+          <Input
+            label="Admin ID"
+            placeholder="Enter admin ID"
+            value={id}
+            onChange={(e) => setId(e.target.value)}
+            autoComplete="username"
+            autoFocus
+          />
 
-  // ✅ NORMAL ADMIN PORTAL
+          <Input
+            type="password"
+            label="Password"
+            placeholder="Enter password"
+            value={pass}
+            onChange={(e) => setPass(e.target.value)}
+            autoComplete="current-password"
+          />
+
+          <Button type="submit" block style={{ marginTop: '0.5rem' }}>
+            Login
+          </Button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function AdminPortalLayout({ onLogout }) {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   return (
     <Router>
-      <div style={{ display: 'flex' }}>
-        <Sidebar />
-        <div style={{ flex: 1, padding: '20px' }}>
-          <Suspense fallback={<div style={{ padding: '20px' }}>Loading...</div>}>
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/users" element={<Users />} />
-              <Route path="/products" element={<Products />} />
-              <Route path="/post-product" element={<PostProduct />} />
-              <Route path="/orders" element={<Orders />} />
-              <Route path="/quotes" element={<Quotes />} />
-              <Route path="/messages" element={<Messages />} />
-              <Route path="/blogs" element={<Blogs />} />
-              <Route path="/post-blog" element={<PostBlog />} />
-              <Route path="/post-blog/:id" element={<PostBlog />} />
-              <Route path="/adminreviews" element={<AdminReviews />} />
-              <Route path="/gift-box-items" element={<GiftBoxItems />} />
-              <Route path="/boxes-and-cards" element={<BoxesAndCards />} />
-            </Routes>
-          </Suspense>
+      <div className="app-shell">
+        <Sidebar isOpen={sidebarOpen} onNavigate={() => setSidebarOpen(false)} />
+        <div className={`sidebar-overlay ${sidebarOpen ? 'is-open' : ''}`} onClick={() => setSidebarOpen(false)} />
+
+        <div className="app-main">
+          <Topbar onMenuClick={() => setSidebarOpen(true)} onLogout={onLogout} />
+
+          <main className="app-content">
+            <Suspense
+              fallback={
+                <div className="page-loader">
+                  <span className="spinner spinner-dark" style={{ width: 28, height: 28, borderWidth: 3 }} />
+                  Loading page...
+                </div>
+              }
+            >
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/users" element={<Users />} />
+                <Route path="/products" element={<Products />} />
+                <Route path="/post-product" element={<PostProduct />} />
+                <Route path="/orders" element={<Orders />} />
+                <Route path="/quotes" element={<Quotes />} />
+                <Route path="/messages" element={<Messages />} />
+                <Route path="/blogs" element={<Blogs />} />
+                <Route path="/post-blog" element={<PostBlog />} />
+                <Route path="/post-blog/:id" element={<PostBlog />} />
+                <Route path="/adminreviews" element={<AdminReviews />} />
+                <Route path="/gift-box-items" element={<GiftBoxItems />} />
+                <Route path="/boxes-and-cards" element={<BoxesAndCards />} />
+              </Routes>
+            </Suspense>
+          </main>
         </div>
       </div>
     </Router>
   );
 }
 
-export default App;
+function App() {
+  const [isAuth, setIsAuth] = useState(false);
 
-/* pushing for live 2 */
+  return (
+    <ToastProvider>
+      <ConfirmProvider>
+        {isAuth ? (
+          <AdminPortalLayout onLogout={() => setIsAuth(false)} />
+        ) : (
+          <LoginScreen onLogin={() => setIsAuth(true)} />
+        )}
+      </ConfirmProvider>
+    </ToastProvider>
+  );
+}
+
+export default App;

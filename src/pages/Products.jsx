@@ -1,17 +1,30 @@
-// Frontend: src/pages/Products.js
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
+import {
+  PageHeader,
+  EmptyState,
+  CardListSkeleton,
+  Pagination,
+  usePagination,
+  Button,
+  Card,
+  Badge,
+  Modal,
+  Input,
+  Textarea,
+  ImageDropzone,
+  useToast,
+  useConfirm,
+} from '../components/ui';
 
 // API functions
 const fetchProducts = () => axios.get('https://giftunwrapbackend.vercel.app/api/products');
 const deleteProductById = (productId) => axios.delete(`https://giftunwrapbackend.vercel.app/api/products/${productId}`);
-// New API call for updating a product
 const updateProductById = (productId, productData, images) => {
   const formData = new FormData();
   formData.append('products', JSON.stringify([productData])); // products field should be an array stringified
 
-  // Append new images if any
-  images.forEach(image => {
+  images.forEach((image) => {
     formData.append('images', image);
   });
 
@@ -22,57 +35,68 @@ const updateProductById = (productId, productData, images) => {
   });
 };
 
-
 export default function Products() {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [editingProduct, setEditingProduct] = useState(null); // State to hold product being edited
-  const [editFormData, setEditFormData] = useState({}); // State for form inputs
-  const [newImages, setNewImages] = useState([]); // State for new images to upload
-  const [currentImagesToRetain, setCurrentImagesToRetain] = useState([]); // State for images currently on the product that should be retained
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [editFormData, setEditFormData] = useState({});
+  const [newImages, setNewImages] = useState([]);
+  const [currentImagesToRetain, setCurrentImagesToRetain] = useState([]);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
+  const toast = useToast();
+  const confirm = useConfirm();
 
   useEffect(() => {
-    const getProducts = async () => {
-      try {
-        setLoading(true);
-        const response = await fetchProducts();
-        setCategories(response.data);
-        setError(null);
-      } catch (err) {
-        console.error('Error fetching products:', err);
-        setError('Failed to load products. Please try again.');
-      } finally {
-        setLoading(false);
-      }
-    };
     getProducts();
   }, []);
 
-  const handleDelete = async (productId) => {
-    const confirmed = window.confirm('Are you sure you want to delete this product?');
-    if (!confirmed) return;
-
+  const getProducts = async () => {
     try {
-      await deleteProductById(productId);
-      setCategories(prevCategories =>
-        prevCategories.map(cat => ({
-          ...cat,
-          products: cat.products.filter(p => p._id !== productId)
-        }))
-      );
-      alert('Product deleted successfully.');
-    } catch (error) {
-      alert('Failed to delete product.');
-      console.error(error.response?.data || error.message || error);
+      setLoading(true);
+      const response = await fetchProducts();
+      setCategories(response.data);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching products:', err);
+      setError('Failed to load products. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Function to initiate editing
-  const handleEditClick = (product, category) => {
+  const handleDelete = async (productId, productName) => {
+    const ok = await confirm({
+      title: 'Delete product?',
+      message: `This will permanently remove "${productName}" from the catalog.`,
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
+
+    setDeletingId(productId);
+    try {
+      await deleteProductById(productId);
+      setCategories((prevCategories) =>
+        prevCategories.map((cat) => ({
+          ...cat,
+          products: cat.products.filter((p) => p._id !== productId),
+        }))
+      );
+      toast.success('Product deleted successfully.');
+    } catch (error) {
+      toast.error('Failed to delete product.');
+      console.error(error.response?.data || error.message || error);
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleEditClick = (product) => {
     setEditingProduct(product._id);
     setEditFormData({
-      _id: product._id, // Keep the _id for the update API call
+      _id: product._id,
       name: product.name,
       price: product.price,
       originalPrice: product.originalPrice || '',
@@ -84,82 +108,43 @@ export default function Products() {
       metaTitle: product.metaTitle || '',
       metaDescription: product.metaDescription || '',
     });
-    setNewImages([]); // Clear any previously selected new images
-    setCurrentImagesToRetain(product.images || []); // Store existing images to retain
+    setNewImages([]);
+    setCurrentImagesToRetain(product.images || []);
   };
 
-  // Handle form input changes
   const handleEditFormChange = (e) => {
     const { name, value } = e.target;
-    setEditFormData(prevData => ({
+    setEditFormData((prevData) => ({
       ...prevData,
       [name]: value,
     }));
   };
 
-  // Handle new image file selection
-  const handleNewImageChange = (e) => {
-    setNewImages(Array.from(e.target.files));
-  };
-
-  // Handle removing an existing image during edit
   const handleRemoveExistingImage = (imageUrlToRemove) => {
-    setCurrentImagesToRetain(prevImages => prevImages.filter(url => url !== imageUrlToRemove));
+    setCurrentImagesToRetain((prevImages) => prevImages.filter((url) => url !== imageUrlToRemove));
   };
 
-  // Function to submit edited product
   const handleSaveEdit = async () => {
     let productDataToSend = { ...editFormData };
 
-    
     if (newImages.length === 0) {
-        productDataToSend.images = currentImagesToRetain;
-    } else {
- 
+      productDataToSend.images = currentImagesToRetain;
     }
 
-
+    setSavingEdit(true);
     try {
       await updateProductById(editingProduct, productDataToSend, newImages);
-      // Update state after successful edit
-      setCategories(prevCategories =>
-        prevCategories.map(cat => ({
-          ...cat,
-          products: cat.products.map(p =>
-            p._id === editingProduct
-              ? {
-                  ...p,
-                  ...editFormData,
-                  
-                }
-              : p
-          ),
-        }))
-      );
-      await fetchUpdatedProducts(); // Re-fetch all products to ensure UI reflects changes, especially images
-
-      setEditingProduct(null); // Exit editing mode
-      setEditFormData({}); // Clear form data
-      setNewImages([]); // Clear new image selection
-      setCurrentImagesToRetain([]); // Clear retained images
-      alert('Product updated successfully.');
+      await getProducts();
+      setEditingProduct(null);
+      setEditFormData({});
+      setNewImages([]);
+      setCurrentImagesToRetain([]);
+      toast.success('Product updated successfully.');
     } catch (error) {
-      alert('Failed to update product.');
+      toast.error('Failed to update product.');
       console.error('Error updating product:', error.response?.data || error.message || error);
-    }
-  };
-
-  const fetchUpdatedProducts = async () => {
-    try {
-      setLoading(true);
-      const response = await fetchProducts();
-      setCategories(response.data);
-      setError(null);
-    } catch (err) {
-      console.error('Error re-fetching products:', err);
-      setError('Failed to re-load products after update.');
     } finally {
-      setLoading(false);
+      setSavingEdit(false);
     }
   };
 
@@ -170,310 +155,224 @@ export default function Products() {
     setCurrentImagesToRetain([]);
   };
 
-  if (loading) {
-    return (
-      <div className="text-center py-5">
-        <div className="spinner-border" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return <div className="container mt-4"><div className="alert alert-danger">{error}</div></div>;
-  }
-
-  if (categories.length === 0 || categories.every(cat => cat.products.length === 0)) {
-    return <div className="container mt-4"><div className="alert alert-info">No products found in any category.</div></div>;
-  }
+  const isEmpty = categories.length === 0 || categories.every((cat) => cat.products.length === 0);
 
   return (
-    <div className="container mt-4" style={{ maxWidth: '1100px' }}>
-      <h2 className="mb-4">All Products</h2>
+    <div className="page-shell">
+      <PageHeader title="All Products" description="Catalog products grouped by category." />
 
-      {categories.map(cat => (
-        <div key={cat._id} className="mb-5">
-          <h3 className="text-capitalize border-bottom pb-2 mb-3 text-secondary">
-            {cat.category}
-          </h3>
+      {error ? (
+        <div className="alert-banner alert-banner-danger">
+          <i className="bi bi-exclamation-circle" aria-hidden="true" />
+          {error}
+        </div>
+      ) : loading ? (
+        <CardListSkeleton count={3} />
+      ) : isEmpty ? (
+        <EmptyState icon="bi-bag" title="No products found" description="Products you post will appear here, grouped by category." />
+      ) : (
+        categories.map((cat) => (
+          <CategorySection
+            key={cat._id}
+            category={cat}
+            onEdit={handleEditClick}
+            onDelete={handleDelete}
+            deletingId={deletingId}
+          />
+        ))
+      )}
 
-          <div className="card shadow-sm">
-          <table className="table table-bordered table-hover align-middle mb-0">
-            <thead className="table-light">
-              <tr>
-                <th>Name</th>
-                <th className="text-end">Price</th>
-                <th>KeyGift</th>
-                <th>Reviews</th>
-                <th className="text-center">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {cat.products.length === 0 ? (
-                <tr>
-                  <td colSpan="5" style={{ textAlign: 'center', padding: '1rem', color: '#888' }}>No products in this category.</td>
-                </tr>
-              ) : (
-                cat.products.map(p => (
-                  <tr key={p._id} style={{ borderBottom: '1px solid #eee' }}>
-                    {editingProduct === p._id ? (
-                      // EDIT MODE
-                      <>
-                        <td style={{ padding: '10px 8px', verticalAlign: 'top' }}>
-                          <input
-                            type="text"
-                            name="name"
-                            value={editFormData.name || ''}
-                            onChange={handleEditFormChange}
-                            style={{ width: '100%', padding: '5px' }}
-                          />
-                        </td>
-                        <td style={{ textAlign: 'right', padding: '10px 8px', verticalAlign: 'top' }}>
-                          <input
-                            type="number"
-                            name="price"
-                            value={editFormData.price || ''}
-                            onChange={handleEditFormChange}
-                            style={{ width: '80px', padding: '5px' }}
-                          />
-                        </td>
-                        <td style={{ padding: '10px 8px', verticalAlign: 'top' }}>
-                          <input
-                            type="text"
-                            name="keyGift"
-                            value={editFormData.keyGift || ''}
-                            onChange={handleEditFormChange}
-                            style={{ width: '100%', padding: '5px' }}
-                          />
-                        </td>
-                        <td style={{ padding: '10px 8px', verticalAlign: 'top' }}>
-                          {/* Display existing images and allow removal */}
-                          <div style={{ marginBottom: '10px' }}>
-                            {currentImagesToRetain.map((imgUrl, idx) => (
-                                <div key={idx} style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
-                                    <img src={imgUrl} alt="product" style={{ width: '50px', height: '50px', marginRight: '5px', objectFit: 'cover' }} />
-                                    <button
-                                        onClick={() => handleRemoveExistingImage(imgUrl)}
-                                        style={{
-                                            background: 'none', border: 'none', color: 'red', cursor: 'pointer', fontSize: '0.8em'
-                                        }}
-                                    >
-                                        x
-                                    </button>
-                                </div>
+      <Modal
+        open={!!editingProduct}
+        onClose={handleCancelEdit}
+        title="Edit Product"
+        size="lg"
+        footer={
+          <>
+            <Button variant="secondary" onClick={handleCancelEdit} disabled={savingEdit}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveEdit} loading={savingEdit}>
+              Save Changes
+            </Button>
+          </>
+        }
+      >
+        <div className="field-row">
+          <Input label="Name" name="name" value={editFormData.name || ''} onChange={handleEditFormChange} />
+          <Input label="Price" type="number" name="price" value={editFormData.price || ''} onChange={handleEditFormChange} />
+        </div>
+        <div className="field-row">
+          <Input
+            label="Original Price"
+            type="number"
+            name="originalPrice"
+            placeholder="Optional"
+            value={editFormData.originalPrice || ''}
+            onChange={handleEditFormChange}
+          />
+          <Input
+            label="Discount (%)"
+            type="number"
+            name="discount"
+            placeholder="Optional"
+            value={editFormData.discount || ''}
+            onChange={handleEditFormChange}
+          />
+        </div>
+        <div className="field-row">
+          <Input label="Key Gift" name="keyGift" value={editFormData.keyGift || ''} onChange={handleEditFormChange} />
+          <Input
+            label="Subcategory"
+            name="subcategory"
+            placeholder="Optional"
+            value={editFormData.subcategory || ''}
+            onChange={handleEditFormChange}
+          />
+        </div>
+
+        <Textarea
+          label="Short Description"
+          name="shortDescription"
+          value={editFormData.shortDescription || ''}
+          onChange={handleEditFormChange}
+        />
+        <Textarea
+          label="Long Description"
+          name="longDescription"
+          value={editFormData.longDescription || ''}
+          onChange={handleEditFormChange}
+        />
+
+        <Input
+          label="Meta Title"
+          name="metaTitle"
+          placeholder="SEO — optional"
+          value={editFormData.metaTitle || ''}
+          onChange={handleEditFormChange}
+        />
+        <Textarea
+          label="Meta Description"
+          name="metaDescription"
+          placeholder="SEO — optional, max 160 characters"
+          maxLength="160"
+          value={editFormData.metaDescription || ''}
+          onChange={handleEditFormChange}
+        />
+
+        <ImageDropzone
+          label="Product Images"
+          multiple
+          maxFiles={4}
+          files={newImages}
+          onFilesChange={setNewImages}
+          existingImages={newImages.length === 0 ? currentImagesToRetain : []}
+          onRemoveExisting={handleRemoveExistingImage}
+          help={newImages.length > 0 ? 'New images will replace the current ones on save.' : 'Upload new images to replace the current ones, or leave as-is to keep them.'}
+        />
+      </Modal>
+    </div>
+  );
+}
+
+function CategorySection({ category, onEdit, onDelete, deletingId }) {
+  const { page, setPage, totalPages, pageItems } = usePagination(category.products, 8);
+
+  return (
+    <div style={{ marginBottom: 'var(--space-7)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
+        <h3 style={{ margin: 0, fontSize: '1.05rem', textTransform: 'capitalize', color: 'var(--color-text)' }}>
+          {category.category}
+        </h3>
+        <Badge variant="neutral">{category.products.length} products</Badge>
+      </div>
+
+      {category.products.length === 0 ? (
+        <EmptyState icon="bi-bag" title="No products in this category" />
+      ) : (
+        <>
+          <div className="dt-wrap">
+            <div className="dt-scroll">
+              <table className="dt-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th className="text-right">Price</th>
+                    <th>Key Gift</th>
+                    <th>Reviews</th>
+                    <th className="col-actions">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageItems.map((p) => (
+                    <tr key={p._id}>
+                      <td data-label="Name">
+                        <div className="dt-row-title">{p.name}</div>
+                        {p.images && p.images.length > 0 && (
+                          <div style={{ display: 'flex', gap: '0.3rem', marginTop: '0.4rem', flexWrap: 'wrap' }}>
+                            {p.images.slice(0, 4).map((img, idx) => (
+                              <img key={idx} src={img} alt={`${p.name} ${idx + 1}`} className="dt-thumb" style={{ width: 36, height: 36 }} />
                             ))}
                           </div>
-                          <input
-                            type="file"
-                            multiple
-                            onChange={handleNewImageChange}
-                            style={{ width: '100%' }}
-                          />
-                          {/* Add other fields like description, subcategory, brand if needed */}
-                          <textarea
-                            name="shortDescription"
-                            placeholder="Short Description"
-                            value={editFormData.shortDescription || ''}
-                            onChange={handleEditFormChange}
-                            style={{ width: '100%', minHeight: '50px', padding: '5px', marginTop: '10px' }}
-                          />
-                          <textarea
-                            name="longDescription"
-                            placeholder="Long Description"
-                            value={editFormData.longDescription || ''}
-                            onChange={handleEditFormChange}
-                            style={{ width: '100%', minHeight: '80px', padding: '5px', marginTop: '5px' }}
-                          />
-                          <input
-                            type="number"
-                            name="originalPrice"
-                            placeholder="Original Price (optional)"
-                            value={editFormData.originalPrice || ''}
-                            onChange={handleEditFormChange}
-                            style={{ width: '100%', padding: '5px', marginTop: '5px' }}
-                          />
-                           <input
-                            type="number"
-                            name="discount"
-                            placeholder="Discount (optional)"
-                            value={editFormData.discount || ''}
-                            onChange={handleEditFormChange}
-                            style={{ width: '100%', padding: '5px', marginTop: '5px' }}
-                          />
-                          <input
-                            type="text"
-                            name="subcategory"
-                            placeholder="Subcategory (optional)"
-                            value={editFormData.subcategory || ''}
-                            onChange={handleEditFormChange}
-                            style={{ width: '100%', padding: '5px', marginTop: '5px' }}
-                          />
-                          <input
-                            type="text"
-                            name="metaTitle"
-                            placeholder="Meta Title (SEO - optional)"
-                            value={editFormData.metaTitle || ''}
-                            onChange={handleEditFormChange}
-                            style={{ width: '100%', padding: '5px', marginTop: '5px' }}
-                          />
-                          <textarea
-                            name="metaDescription"
-                            placeholder="Meta Description (SEO - optional, max 160 chars)"
-                            value={editFormData.metaDescription || ''}
-                            onChange={handleEditFormChange}
-                            maxLength="160"
-                            style={{ width: '100%', minHeight: '60px', padding: '5px', marginTop: '5px' }}
-                          />
-                          {/* Reviews are displayed, but not editable here as they have their own management */}
-                           <div style={{marginTop: '10px', fontSize: '0.9em', color: '#666'}}>
-                             <strong>Current Reviews:</strong>
-                             {p.reviews && p.reviews.length > 0 ? (
-                                <ul style={{ listStyleType: 'none', padding: 0, margin: 0 }}>
-                                    {p.reviews.map((review, index) => (
-                                        <li key={review._id || index} style={{ marginBottom: '5px', borderBottom: index < p.reviews.length - 1 ? '1px dotted #e0e0e0' : 'none' }}>
-                                            Rating: {review.rating}⭐, Comment: {review.comment}
-                                        </li>
-                                    ))}
-                                </ul>
-                            ) : (
-                                <span>No reviews.</span>
-                            )}
-                           </div>
-                        </td>
-                        <td style={{ textAlign: 'center', padding: '10px 8px', verticalAlign: 'top', whiteSpace: 'nowrap' }}>
-                          <button
-                            onClick={handleSaveEdit}
-                            style={{
-                              backgroundColor: '#28a745',
-                              color: '#fff',
-                              border: 'none',
-                              padding: '8px 15px',
-                              cursor: 'pointer',
-                              borderRadius: '5px',
-                              marginRight: '10px',
-                            }}
+                        )}
+                        {p.shortDescription && <p className="dt-row-subtitle" style={{ marginTop: '0.3rem' }}>{p.shortDescription}</p>}
+                      </td>
+                      <td className="text-right" data-label="Price">
+                        <div>${p.price}</div>
+                        {p.originalPrice && p.originalPrice > p.price && (
+                          <div style={{ fontSize: '0.78rem', color: 'var(--color-text-subtle)', textDecoration: 'line-through' }}>
+                            ${p.originalPrice}
+                          </div>
+                        )}
+                        {p.discount && <div style={{ fontSize: '0.78rem', color: 'var(--color-success)' }}>{p.discount}% off</div>}
+                      </td>
+                      <td data-label="Key Gift">
+                        {p.keyGift}
+                        {p.subcategory && <div className="dt-row-subtitle">{p.subcategory}</div>}
+                      </td>
+                      <td data-label="Reviews">
+                        {p.reviews && p.reviews.length > 0 ? (
+                          <div style={{ maxHeight: 90, overflowY: 'auto', maxWidth: 220 }}>
+                            {p.reviews.map((review, index) => (
+                              <div key={review._id || index} style={{ fontSize: '0.78rem', marginBottom: '0.35rem' }}>
+                                <strong>{review.rating}⭐</strong> {review.comment}
+                                <div className="dt-row-subtitle">
+                                  by {review.username}
+                                  {review.createdAt ? ` · ${new Date(review.createdAt).toLocaleDateString()}` : ''}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="dt-row-subtitle">No reviews yet</span>
+                        )}
+                      </td>
+                      <td className="col-actions" data-label="Actions">
+                        <div className="dt-action-group">
+                          <Button variant="secondary" size="sm" onClick={() => onEdit(p)} icon={<i className="bi bi-pencil" aria-hidden="true" />}>
+                            Edit
+                          </Button>
+                          <Button
+                            variant="danger-ghost"
+                            size="sm"
+                            loading={deletingId === p._id}
+                            onClick={() => onDelete(p._id, p.name)}
+                            icon={<i className="bi bi-trash3" aria-hidden="true" />}
                           >
-                            Save
-                          </button>
-                          <button
-                            onClick={handleCancelEdit}
-                            style={{
-                              backgroundColor: '#6c757d',
-                              color: '#fff',
-                              border: 'none',
-                              padding: '8px 15px',
-                              cursor: 'pointer',
-                              borderRadius: '5px',
-                            }}
-                          >
-                            Cancel
-                          </button>
-                        </td>
-                      </>
-                    ) : (
-                      // DISPLAY MODE
-                      <>
-                        <td style={{ padding: '10px 8px', verticalAlign: 'top' }}>
-                          {p.name}
-                          {p.images && p.images.length > 0 && (
-                            <div style={{ marginTop: '5px', display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
-                              {p.images.map((img, idx) => (
-                                <img
-                                  key={idx}
-                                  src={img}
-                                  alt={`${p.name} image ${idx + 1}`}
-                                  style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '3px' }}
-                                />
-                              ))}
-                            </div>
-                          )}
-                          {p.shortDescription && <p style={{fontSize: '0.85em', color: '#666', marginTop: '5px', marginBottom: '0'}}><em>{p.shortDescription}</em></p>}
-                        </td>
-                        <td style={{ textAlign: 'right', padding: '10px 8px', verticalAlign: 'top' }}>
-                          ${p.price}
-                          {p.originalPrice && p.originalPrice > p.price && (
-                            <div style={{fontSize: '0.8em', color: '#999', textDecoration: 'line-through'}}>${p.originalPrice}</div>
-                          )}
-                          {p.discount && (
-                            <div style={{fontSize: '0.8em', color: 'green'}}>({p.discount}% Off)</div>
-                          )}
-                        </td>
-                        <td style={{ padding: '10px 8px', verticalAlign: 'top' }}>
-                          {p.keyGift}
-                          {p.subcategory && <div style={{fontSize: '0.85em', color: '#888'}}>({p.subcategory})</div>}
-                        </td>
-                        <td style={{ padding: '10px 8px', verticalAlign: 'top' }}>
-                          {p.reviews && p.reviews.length > 0 ? (
-                            <ul style={{ listStyleType: 'none', padding: 0, margin: 0 }}>
-                              {p.reviews.map((review, index) => (
-                                <li key={review._id || index} style={{
-                                  marginBottom: '8px',
-                                  paddingBottom: '8px',
-                                  borderBottom: index < p.reviews.length - 1 ? '1px dotted #e0e0e0' : 'none',
-                                  fontSize: '0.9em'
-                                }}>
-                                  <strong>Rating:</strong> {review.rating} ⭐<br />
-                                  <strong>Comment:</strong> {review.comment}<br />
-                                  <span><strong>By:</strong> {review.username}<br /></span>
-                                  {review.createdAt && (
-                                    <span style={{ color: '#999' }}>{new Date(review.createdAt).toLocaleDateString()}</span>
-                                  )}
-                                </li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <span style={{ color: '#888' }}>No reviews yet.</span>
-                          )}
-                        </td>
-                        <td style={{ textAlign: 'center', padding: '10px 8px', verticalAlign: 'top' }}>
-                          <button
-                            onClick={() => handleEditClick(p, cat)} // Pass product and category to edit handler
-                            style={{
-                              backgroundColor: '#007bff',
-                              color: '#fff',
-                              border: 'none',
-                              padding: '8px 15px',
-                              cursor: 'pointer',
-                              borderRadius: '5px',
-                              marginRight: '10px',
-                              marginBottom: '5px',
-                              transition: 'background-color 0.3s ease',
-                              whiteSpace: 'nowrap'
-                            }}
-                            onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#0056b3')}
-                            onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#007bff')}
-                          >
-                            Edit Product
-                          </button>
-                          <button
-                            onClick={() => handleDelete(p._id)}
-                            style={{
-                              backgroundColor: '#d32f2f',
-                              color: '#fff',
-                              border: 'none',
-                              padding: '8px 15px',
-                              cursor: 'pointer',
-                              borderRadius: '5px',
-                              transition: 'background-color 0.3s ease',
-                              whiteSpace: 'nowrap'
-                            }}
-                            onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#b71c1c')}
-                            onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#d32f2f')}
-                          >
-                            Delete Product
-                          </button>
-                        </td>
-                      </>
-                    )}
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                            Delete
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      ))}
+
+          <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalItems={category.products.length} pageSize={8} />
+        </>
+      )}
     </div>
   );
 }

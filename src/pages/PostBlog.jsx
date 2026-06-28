@@ -1,10 +1,20 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   fetchBlogById,
   createBlog,
   updateBlog,
 } from '../api';
+import {
+  PageHeader,
+  Card,
+  Input,
+  Textarea,
+  Field,
+  ImageDropzone,
+  Button,
+  useToast,
+} from '../components/ui';
 
 const emptyFormData = {
   title: '',
@@ -21,10 +31,12 @@ const emptyFormData = {
 const PostBlog = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const toast = useToast();
 
   const [formData, setFormData] = useState(emptyFormData);
   const [editingBlog, setEditingBlog] = useState(null);
   const [loading, setLoading] = useState(Boolean(id));
+  const [submitting, setSubmitting] = useState(false);
 
   const [showLinkInput, setShowLinkInput] = useState(false);
   const [linkData, setLinkData] = useState({ text: '', url: '' });
@@ -53,7 +65,7 @@ const PostBlog = () => {
         });
       } catch (error) {
         console.error('Error fetching blog:', error);
-        alert('Failed to load blog');
+        toast.error('Failed to load blog');
         navigate('/blogs');
       } finally {
         setLoading(false);
@@ -61,27 +73,15 @@ const PostBlog = () => {
     };
 
     loadBlog();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, navigate]);
 
   const handleInputChange = (e) => {
-    const { name, value, files } = e.target;
-
-    if (name === 'mainImageFile') {
-      setFormData(prev => ({
-        ...prev,
-        mainImageFile: files?.[0] || null
-      }));
-    } else if (name === 'contentImageFiles') {
-      setFormData(prev => ({
-        ...prev,
-        contentImageFiles: Array.from(files || [])
-      }));
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        [name]: value
-      }));
-    }
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
   const buildMultipartFormData = () => {
@@ -110,26 +110,29 @@ const PostBlog = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (!editingBlog && !formData.mainImageFile) {
+      toast.error('Please select a main image file.');
+      return;
+    }
+
+    setSubmitting(true);
     try {
       const payload = buildMultipartFormData();
 
       if (editingBlog) {
         await updateBlog(editingBlog.id, payload);
-        alert('Blog updated successfully!');
+        toast.success('Blog updated successfully!');
       } else {
-        if (!formData.mainImageFile) {
-          alert('Please select a main image file.');
-          return;
-        }
-
         await createBlog(payload);
-        alert('Blog created successfully!');
+        toast.success('Blog created successfully!');
       }
 
       navigate('/blogs');
     } catch (error) {
       console.error('Error saving blog:', error);
-      alert('Failed to save blog');
+      toast.error('Failed to save blog');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -234,137 +237,77 @@ const PostBlog = () => {
   };
 
   if (loading) {
-    return <div className="tw-scope p-8">Loading...</div>;
+    return (
+      <div className="page-loader">
+        <span className="spinner spinner-dark" style={{ width: 28, height: 28, borderWidth: 3 }} />
+        Loading blog...
+      </div>
+    );
   }
 
   return (
-    <div className="tw-scope p-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">{editingBlog ? 'Edit Blog' : 'Add New Blog'}</h1>
-        <button
-          type="button"
-          onClick={() => navigate('/blogs')}
-          className="bg-gray-300 text-black px-6 py-2 rounded-lg hover:bg-gray-400"
-        >
-          Back to Blogs
-        </button>
-      </div>
+    <div className="page-shell">
+      <PageHeader
+        title={editingBlog ? 'Edit Blog' : 'Add New Blog'}
+        description="Write and publish storefront blog content."
+        actions={
+          <Button variant="secondary" onClick={() => navigate('/blogs')}>
+            Back to Blogs
+          </Button>
+        }
+      />
 
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Title *</label>
-            <input
-              type="text"
-              name="title"
-              value={formData.title}
-              onChange={handleInputChange}
+      <Card>
+        <form onSubmit={handleSubmit}>
+          <Input label="Title" required name="title" value={formData.title} onChange={handleInputChange} />
+          <Input label="Sub Heading" required name="subHeading" value={formData.subHeading} onChange={handleInputChange} />
+
+          <div className="field-row">
+            <Input
+              label="Category"
               required
-              className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Sub Heading *</label>
-            <input
-              type="text"
-              name="subHeading"
-              value={formData.subHeading}
+              name="category"
+              placeholder="e.g., General Gifting Guide"
+              value={formData.category}
               onChange={handleInputChange}
-              required
-              className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
             />
+            <Input label="Author" required name="author" value={formData.author} onChange={handleInputChange} />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Category *</label>
-              <input
-                type="text"
-                name="category"
-                value={formData.category}
-                onChange={handleInputChange}
-                required
-                placeholder="e.g., General Gifting Guide"
-                className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Author *</label>
-              <input
-                type="text"
-                name="author"
-                value={formData.author}
-                onChange={handleInputChange}
-                required
-                className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
-              />
-            </div>
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="block text-sm font-medium">Content *</label>
-            </div>
-
-            <div className="flex items-center gap-1.5 flex-wrap mb-2 p-1.5 bg-gray-50 border border-gray-200 rounded-md">
-              <button
-                type="button"
-                onClick={() => applyLineFormat('h2')}
-                className="text-xs bg-white hover:bg-gray-100 border border-gray-300 px-2.5 py-1 rounded-md font-semibold"
-                title="Heading (select line(s) first)"
-              >
+          <Field label="Content" required>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.5rem', padding: '0.4rem', background: 'var(--color-surface-muted)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)' }}>
+              <Button type="button" variant="secondary" size="sm" onClick={() => applyLineFormat('h2')} title="Heading (select line(s) first)">
                 H2
-              </button>
-              <button
-                type="button"
-                onClick={() => applyLineFormat('h3')}
-                className="text-xs bg-white hover:bg-gray-100 border border-gray-300 px-2.5 py-1 rounded-md font-semibold"
-                title="Sub-heading (select line(s) first)"
-              >
+              </Button>
+              <Button type="button" variant="secondary" size="sm" onClick={() => applyLineFormat('h3')} title="Sub-heading (select line(s) first)">
                 H3
-              </button>
-              <span className="w-px h-5 bg-gray-300 mx-0.5" />
-              <button
-                type="button"
-                onClick={() => applyLineFormat('bullet')}
-                className="flex items-center gap-1 text-xs bg-white hover:bg-gray-100 border border-gray-300 px-2.5 py-1 rounded-md font-medium"
-                title="Bullet list (select line(s) first)"
-              >
+              </Button>
+              <span style={{ width: 1, height: 20, background: 'var(--color-border-strong)' }} />
+              <Button type="button" variant="secondary" size="sm" onClick={() => applyLineFormat('bullet')} title="Bullet list (select line(s) first)">
                 • List
-              </button>
-              <button
-                type="button"
-                onClick={() => applyLineFormat('number')}
-                className="flex items-center gap-1 text-xs bg-white hover:bg-gray-100 border border-gray-300 px-2.5 py-1 rounded-md font-medium"
-                title="Numbered list (select line(s) first)"
-              >
+              </Button>
+              <Button type="button" variant="secondary" size="sm" onClick={() => applyLineFormat('number')} title="Numbered list (select line(s) first)">
                 1. List
-              </button>
-              <span className="w-px h-5 bg-gray-300 mx-0.5" />
-              <button
-                type="button"
-                onClick={openLinkPopup}
-                className="flex items-center gap-1 text-xs bg-white hover:bg-gray-100 border border-gray-300 px-2.5 py-1 rounded-md font-medium"
-                title="Insert hyperlink (select text first, then click)"
-              >
-                <span>🔗</span> Insert Link
-              </button>
+              </Button>
+              <span style={{ width: 1, height: 20, background: 'var(--color-border-strong)' }} />
+              <Button type="button" variant="secondary" size="sm" onClick={openLinkPopup} icon={<i className="bi bi-link-45deg" aria-hidden="true" />} title="Insert hyperlink (select text first, then click)">
+                Insert Link
+              </Button>
             </div>
 
             {showLinkInput && (
               <div
-                className="mb-2 p-3 bg-gray-50 border border-gray-200 rounded-lg"
+                style={{ marginBottom: '0.6rem', padding: 'var(--space-3)', background: 'var(--color-surface-muted)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)' }}
                 onKeyDown={e => e.key === 'Escape' && closeLinkPopup()}
               >
-                <div className="flex flex-col sm:flex-row gap-2">
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                   <input
                     type="text"
                     placeholder="Link text (optional)"
                     value={linkData.text}
                     onChange={e => setLinkData(prev => ({ ...prev, text: e.target.value }))}
-                    className="flex-1 border border-gray-300 px-3 py-1.5 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                    className="input"
+                    style={{ flex: 1, minWidth: 140 }}
                   />
                   <input
                     ref={linkUrlRef}
@@ -373,27 +316,22 @@ const PostBlog = () => {
                     value={linkData.url}
                     onChange={e => setLinkData(prev => ({ ...prev, url: e.target.value }))}
                     onKeyDown={e => e.key === 'Enter' && handleInsertLink()}
-                    className="flex-1 border border-gray-300 px-3 py-1.5 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                    className="input"
+                    style={{ flex: 1, minWidth: 140 }}
                   />
-                  <button
-                    type="button"
-                    onClick={handleInsertLink}
-                    className="bg-black text-white px-4 py-1.5 rounded-md text-sm hover:bg-gray-800 whitespace-nowrap"
-                  >
+                  <Button type="button" size="sm" onClick={handleInsertLink}>
                     Insert
-                  </button>
-                  <button
-                    type="button"
-                    onClick={closeLinkPopup}
-                    className="bg-gray-300 text-black px-3 py-1.5 rounded-md text-sm hover:bg-gray-400"
-                  >
+                  </Button>
+                  <Button type="button" variant="secondary" size="sm" onClick={closeLinkPopup}>
                     Cancel
-                  </button>
+                  </Button>
                 </div>
                 {linkError ? (
-                  <p className="text-xs text-red-600 mt-1.5">{linkError}</p>
+                  <p className="field-error" style={{ marginTop: '0.4rem' }}>
+                    <i className="bi bi-exclamation-circle" aria-hidden="true" /> {linkError}
+                  </p>
                 ) : (
-                  <p className="text-xs text-gray-400 mt-1.5">
+                  <p className="field-help" style={{ marginTop: '0.4rem' }}>
                     {linkData.text ? 'Selected text will become the link.' : 'No text selected — the URL itself will be used as the link text.'}
                   </p>
                 )}
@@ -408,110 +346,64 @@ const PostBlog = () => {
               required
               rows="18"
               placeholder="Write your blog content here...&#10;Tip: Select a line and click H2/H3/List to format it, or select text and click 'Insert Link'."
-              className="w-full min-h-[420px] border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-black font-mono text-sm"
+              className="textarea"
+              style={{ minHeight: 420, fontFamily: 'monospace', fontSize: '0.85rem' }}
             />
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="field-help">
               Use <code>## </code> for a heading, <code>### </code> for a sub-heading, <code>- </code> for a bullet list, <code>1. </code> for a numbered list, and <code>[link text](https://url.com)</code> for links — one item per line. The toolbar buttons above insert these for the selected line(s).
             </p>
-          </div>
+          </Field>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Meta Title (SEO, optional)</label>
-              <input
-                type="text"
-                name="metaTitle"
-                value={formData.metaTitle}
-                onChange={handleInputChange}
-                placeholder="Defaults to the blog title if left blank"
-                className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Meta Description (SEO, optional, max 160 chars)</label>
-              <textarea
-                name="metaDescription"
-                value={formData.metaDescription}
-                onChange={handleInputChange}
-                maxLength="160"
-                rows="2"
-                placeholder="Defaults to the sub heading if left blank"
-                className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              Main Image {editingBlog ? '(optional)' : '*'}
-            </label>
-            <input
-              type="file"
-              name="mainImageFile"
+          <div className="field-row">
+            <Input
+              label="Meta Title"
+              name="metaTitle"
+              placeholder="Defaults to the blog title if left blank"
+              value={formData.metaTitle}
               onChange={handleInputChange}
-              required={!editingBlog}
-              accept="image/*"
-              className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
             />
-            {editingBlog && editingBlog.mainImage && (
-              <div className="mt-2 flex items-center gap-3">
-                <span className="text-xs text-gray-500">Current image:</span>
-                <img
-                  src={editingBlog.mainImage}
-                  alt={editingBlog.title}
-                  className="h-16 w-16 object-cover rounded"
-                />
-              </div>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              Content Images (optional, max 10)
-            </label>
-            <input
-              type="file"
-              name="contentImageFiles"
+            <Textarea
+              label="Meta Description"
+              name="metaDescription"
+              value={formData.metaDescription}
               onChange={handleInputChange}
-              accept="image/*"
-              multiple
-              className="w-full border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+              maxLength="160"
+              rows="2"
+              placeholder="Defaults to the sub heading if left blank"
             />
-            {editingBlog && editingBlog.contentImages && editingBlog.contentImages.length > 0 && (
-              <div className="mt-2">
-                <span className="text-xs text-gray-500 block mb-2">Current content images:</span>
-                <div className="flex gap-2 flex-wrap">
-                  {editingBlog.contentImages.map((img, idx) => (
-                    <img
-                      key={idx}
-                      src={img}
-                      alt={`Content ${idx + 1}`}
-                      className="h-16 w-16 object-cover rounded"
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
 
-          <div className="flex gap-4">
-            <button
-              type="submit"
-              className="bg-black text-white px-6 py-2 rounded-lg hover:bg-gray-800"
-            >
+          <ImageDropzone
+            label="Main Image"
+            required={!editingBlog}
+            accept="image/*"
+            files={formData.mainImageFile ? [formData.mainImageFile] : []}
+            onFilesChange={(files) => setFormData(prev => ({ ...prev, mainImageFile: files[0] || null }))}
+            existingImages={!formData.mainImageFile && editingBlog?.mainImage ? [editingBlog.mainImage] : []}
+            help={editingBlog ? 'Upload a new image to replace the current one, or leave as-is to keep it.' : undefined}
+          />
+
+          <ImageDropzone
+            label="Content Images (optional, max 10)"
+            multiple
+            maxFiles={10}
+            accept="image/*"
+            files={formData.contentImageFiles}
+            onFilesChange={(files) => setFormData(prev => ({ ...prev, contentImageFiles: files }))}
+            existingImages={editingBlog?.contentImages || []}
+            help={editingBlog?.contentImages?.length ? 'New uploads are added alongside the current content images.' : undefined}
+          />
+
+          <div className="form-actions">
+            <Button type="submit" loading={submitting}>
               {editingBlog ? 'Update' : 'Create'}
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/blogs')}
-              className="bg-gray-300 text-black px-6 py-2 rounded-lg hover:bg-gray-400"
-            >
+            </Button>
+            <Button type="button" variant="secondary" onClick={() => navigate('/blogs')} disabled={submitting}>
               Cancel
-            </button>
+            </Button>
           </div>
         </form>
-      </div>
+      </Card>
     </div>
   );
 };

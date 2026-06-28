@@ -1,59 +1,54 @@
 import { Link, useLocation } from 'react-router-dom';
 
-export default function Sidebar() {
+const menuItems = [
+  { path: '/', label: 'Dashboard', icon: 'bi-speedometer2' },
+  { path: '/users', label: 'Users', icon: 'bi-people' },
+  { path: '/products', label: 'Products', icon: 'bi-bag' },
+  { path: '/post-product', label: 'Post Product', icon: 'bi-plus-square' },
+  { path: '/gift-box-items', label: 'Gift Box Items', icon: 'bi-box-seam' },
+  { path: '/boxes-and-cards', label: 'Boxes & Cards', icon: 'bi-gift' },
+  { path: '/orders', label: 'Orders', icon: 'bi-cart-check' },
+  { path: '/quotes', label: 'Quote Requests', icon: 'bi-file-earmark-text' },
+  { path: '/blogs', label: 'Blogs', icon: 'bi-journal-text' },
+  { path: '/post-blog', label: 'Post Blog', icon: 'bi-pencil-square' },
+  { path: '/messages', label: 'Messages', icon: 'bi-chat-dots' },
+  { path: '/adminreviews', label: 'Reviews', icon: 'bi-star' },
+];
+
+export default function Sidebar({ isOpen = false, onNavigate }) {
   const { pathname } = useLocation();
 
-  const menuItems = [
-    { path: '/', label: 'Dashboard' },
-    { path: '/users', label: 'Users' },
-    { path: '/products', label: 'Products' },
-    { path: '/post-product', label: 'Post Product' },
-    { path: '/gift-box-items', label: 'Gift Box Items' },
-    { path: '/boxes-and-cards', label: 'Boxes & Cards' },
-    { path: '/orders', label: 'Orders' },
-    { path: '/quotes', label: 'Quote Requests' },
-    { path: '/blogs', label: 'Blogs' },
-    { path: '/post-blog', label: 'Post Blog' },
-    { path: '/messages', label: 'Messages' },
-    { path: '/adminreviews', label: 'Reviews' },
-  ];
-
   return (
-    <div
-      style={{
-        width: '240px',
-        background: 'linear-gradient(to bottom, #1e293b, #0f172a)',
-        padding: '2rem 1.5rem',
-        color: '#fff',
-        boxShadow: '2px 0 10px rgba(0, 0, 0, 0.3)',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
-      <h2 style={{ marginBottom: '2rem', fontSize: '1.6rem', color: '#fff', fontWeight: 'bold' }}>
-        Admin Portal
-      </h2>
-      <ul style={{ listStyle: 'none', padding: 0, margin: 0, flexGrow: 1 }}>
+    <nav className={`sidebar ${isOpen ? 'is-open' : ''}`} aria-label="Primary">
+      <div className="sidebar-brand">
+        <span className="sidebar-brand-icon" aria-hidden="true">
+          <i className="bi bi-gift-fill" />
+        </span>
+        <span className="sidebar-brand-text">
+          GiftUnwrap
+          <small>Admin Portal</small>
+        </span>
+      </div>
+
+      <ul className="sidebar-nav">
         {menuItems.map((item) => (
-          <li key={item.path} style={{ marginBottom: '1rem' }}>
+          <li key={item.path}>
             <Link
               to={item.path}
-              style={{
-                display: 'block',
-                padding: '0.75rem 1rem',
-                borderRadius: '8px',
-                textDecoration: 'none',
-                color: pathname === item.path ? '#1d4ed8' : '#cbd5e1',
-                backgroundColor: pathname === item.path ? '#f8fafc' : 'transparent',
-                fontWeight: pathname === item.path ? '600' : '400',
-                transition: 'all 0.2s ease-in-out',
-              }}
+              onClick={onNavigate}
+              className={`sidebar-link ${pathname === item.path ? 'active' : ''}`}
+              aria-current={pathname === item.path ? 'page' : undefined}
             >
+              <i className={`bi ${item.icon}`} aria-hidden="true" />
               {item.label}
             </Link>
           </li>
         ))}
       </ul>
-    </div>
+
+      <div className="sidebar-footer">GiftUnwrap Admin &copy; {new Date().getFullYear()}</div>
+    </nav>
   );
 }
+
+export { menuItems };
