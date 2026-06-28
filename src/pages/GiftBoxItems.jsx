@@ -22,7 +22,7 @@ import {
   usePagination,
   useToast,
   useConfirm,
-} from '../components/ui';
+} from '../components/UI';
 
 const categories = [
   'chocolates-snacks',

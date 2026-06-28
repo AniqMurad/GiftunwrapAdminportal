@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { postProduct } from '../api';
-import { PageHeader, Card, Input, Textarea, Select, ImageDropzone, Button, useToast } from '../components/ui';
+import { PageHeader, Card, Input, Textarea, Select, ImageDropzone, Button, useToast } from '../components/UI';
 
 const categoryOptions = {
     giftsForCompany: ['newhire', 'ocassion', 'farewell', 'achievement', 'workanniversary'],

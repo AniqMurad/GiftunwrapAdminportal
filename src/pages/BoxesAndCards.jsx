@@ -25,7 +25,7 @@ import {
   usePagination,
   useToast,
   useConfirm,
-} from '../components/ui';
+} from '../components/UI';
 
 const BoxesAndCards = () => {
   const [boxes, setBoxes] = useState([]);

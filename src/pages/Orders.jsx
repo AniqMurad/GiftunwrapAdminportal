@@ -11,7 +11,7 @@ import {
   Badge,
   useToast,
   useConfirm,
-} from '../components/ui';
+} from '../components/UI';
 
 const orderStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled', 'returned'];
 

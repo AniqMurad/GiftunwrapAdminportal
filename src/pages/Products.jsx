@@ -15,7 +15,7 @@ import {
   ImageDropzone,
   useToast,
   useConfirm,
-} from '../components/ui';
+} from '../components/UI';
 
 // API functions
 const fetchProducts = () => axios.get('https://giftunwrapbackend.vercel.app/api/products');

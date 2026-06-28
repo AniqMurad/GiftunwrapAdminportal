@@ -10,7 +10,7 @@ import {
   Card,
   useToast,
   useConfirm,
-} from './ui';
+} from './UI';
 
 export default function AdminReviews() {
   const [reviews, setReviews] = useState([]);
