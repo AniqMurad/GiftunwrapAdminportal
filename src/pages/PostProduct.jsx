@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { postProduct } from '../api';
-import { PageHeader, Card, Input, Textarea, Select, ImageDropzone, Button, useToast } from '../components/UI';
+import { PageHeader, Card, Field, Input, Textarea, Select, ImageDropzone, Button, useToast } from '../components/UI';
 
 const categoryOptions = {
     giftsForCompany: ['newhire', 'ocassion', 'farewell', 'achievement', 'workanniversary'],
@@ -13,6 +13,54 @@ const categoryOptions = {
     FlowersChocolates: ['cake', 'bouquets', 'cakebouquets'],
     greetingCards: ['birthday', 'anniversary', 'thankyou', 'getwell', 'congratulations', 'love', 'general'],
 };
+
+const formatOptionLabel = (value) => value
+    .replace(/[-_]+/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+
+function MultiCheckboxSelect({ label, options, value, onChange, disabled = false, required = false }) {
+    const selectedValues = Array.isArray(value) ? value : [];
+    const selectionLabel = selectedValues.length
+        ? selectedValues.map(formatOptionLabel).join(', ')
+        : `Select ${label}`;
+
+    const toggleOption = (option) => {
+        const nextValues = selectedValues.includes(option)
+            ? selectedValues.filter((valueItem) => valueItem !== option)
+            : [...selectedValues, option];
+        onChange(nextValues);
+    };
+
+    return (
+        <Field label={label} required={required}>
+            <details
+                className={`multi-checkbox-select${disabled ? ' is-disabled' : ''}`}
+                aria-disabled={disabled}
+            >
+                <summary
+                    aria-label={`${label}: ${selectionLabel}`}
+                    onClick={disabled ? (event) => event.preventDefault() : undefined}
+                >
+                    <span>{selectionLabel}</span>
+                </summary>
+                {!disabled && (
+                    <div className="multi-checkbox-menu" role="group" aria-label={label}>
+                        {options.map((option) => (
+                            <label key={option}>
+                                <input
+                                    type="checkbox"
+                                    checked={selectedValues.includes(option)}
+                                    onChange={() => toggleOption(option)}
+                                />
+                                <span>{formatOptionLabel(option)}</span>
+                            </label>
+                        ))}
+                    </div>
+                )}
+            </details>
+        </Field>
+    );
+}
 
 export default function PostProduct() {
     const MAX_UPLOAD_BYTES = 4 * 1024 * 1024; // Keep request under common serverless body limits
@@ -29,7 +77,7 @@ export default function PostProduct() {
                 price: '',
                 originalPrice: '',
                 discount: '',
-                keyGift: '',
+                keyGift: [],
                 subcategory: '',
                 shortDescription: '',
                 longDescription: '',
@@ -121,7 +169,7 @@ export default function PostProduct() {
             category: selectedCategory,
             products: [{
                 ...prev.products[0],
-                keyGift: '', // reset keyGift on category change
+                keyGift: [], // reset keyGift on category change
                 ...(isGreetingCard ? {
                     shortDescription: '',
                     longDescription: '',
@@ -152,6 +200,11 @@ export default function PostProduct() {
 
         if (productImages.length === 0) {
             toast.error('Please upload at least one image for the product.');
+            return;
+        }
+
+        if (!Array.isArray(form.products[0].keyGift) || form.products[0].keyGift.length === 0) {
+            toast.error('Please select at least one Key Gift.');
             return;
         }
 
@@ -195,7 +248,7 @@ export default function PostProduct() {
                     price: '',
                     originalPrice: '',
                     discount: '',
-                    keyGift: '',
+                    keyGift: [],
                     subcategory: '',
                     shortDescription: '',
                     longDescription: '',
@@ -229,19 +282,18 @@ export default function PostProduct() {
                             ))}
                         </Select>
 
-                        <Select
+                        <MultiCheckboxSelect
+                            key={form.category || 'no-category'}
                             label="Key Gift"
                             required
-                            name="keyGift"
+                            options={currentKeyGifts}
                             value={form.products[0].keyGift}
-                            onChange={handleProductChange}
+                            onChange={(keyGift) => setForm((previous) => ({
+                                ...previous,
+                                products: [{ ...previous.products[0], keyGift }],
+                            }))}
                             disabled={!form.category}
-                        >
-                            <option value="">Select Key Gift</option>
-                            {currentKeyGifts.map((keyGift) => (
-                                <option key={keyGift} value={keyGift}>{keyGift}</option>
-                            ))}
-                        </Select>
+                        />
                     </div>
 
                     <Input

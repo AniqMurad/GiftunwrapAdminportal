@@ -101,7 +101,7 @@ export default function Products() {
       price: product.price,
       originalPrice: product.originalPrice || '',
       discount: product.discount || '',
-      keyGift: product.keyGift,
+      keyGift: Array.isArray(product.keyGift) ? product.keyGift.join(', ') : product.keyGift,
       subcategory: product.subcategory || '',
       shortDescription: product.shortDescription || '',
       longDescription: product.longDescription || '',
@@ -126,6 +126,10 @@ export default function Products() {
 
   const handleSaveEdit = async () => {
     let productDataToSend = { ...editFormData };
+    productDataToSend.keyGift = String(productDataToSend.keyGift || '')
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean);
 
     if (newImages.length === 0) {
       productDataToSend.images = currentImagesToRetain;
@@ -327,7 +331,7 @@ function CategorySection({ category, onEdit, onDelete, deletingId }) {
                         {p.discount && <div style={{ fontSize: '0.78rem', color: 'var(--color-success)' }}>{p.discount}% off</div>}
                       </td>
                       <td data-label="Key Gift">
-                        {p.keyGift}
+                        {Array.isArray(p.keyGift) ? p.keyGift.join(', ') : p.keyGift}
                         {p.subcategory && <div className="dt-row-subtitle">{p.subcategory}</div>}
                       </td>
                       <td data-label="Reviews">
