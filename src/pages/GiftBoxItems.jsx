@@ -32,7 +32,8 @@ const categories = [
   'fragrances',
   'clothing',
   'shoes',
-  'beauty-personal-care'
+  'beauty-personal-care',
+  'gift-cards'
 ];
 
 const categoryLabels = {
@@ -43,7 +44,8 @@ const categoryLabels = {
   'fragrances': 'Fragrances',
   'clothing': 'Clothing',
   'shoes': 'Shoes',
-  'beauty-personal-care': 'Beauty & Personal Care'
+  'beauty-personal-care': 'Beauty & Personal Care',
+  'gift-cards': 'Gift Cards'
 };
 
 const GiftBoxItems = () => {
