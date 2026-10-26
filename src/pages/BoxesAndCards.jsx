@@ -27,6 +27,16 @@ import {
   useConfirm,
 } from '../components/UI';
 
+const MAX_BOX_IMAGES = 10;
+
+const getBoxImages = (box) => {
+  if (Array.isArray(box?.images) && box.images.length > 0) {
+    return box.images.filter(Boolean);
+  }
+
+  return box?.image ? [box.image] : [];
+};
+
 const BoxesAndCards = () => {
   const [boxes, setBoxes] = useState([]);
   const [cards, setCards] = useState([]);
@@ -45,7 +55,8 @@ const BoxesAndCards = () => {
     size: '',
     price: '',
     capacity: '',
-    imageFile: null,
+    imageFiles: [],
+    existingImages: [],
     color: '#F5DEB3',
     description: ''
   });
@@ -103,9 +114,8 @@ const BoxesAndCards = () => {
     payload.append('color', boxFormData.color || '');
     payload.append('description', boxFormData.description || '');
 
-    if (boxFormData.imageFile) {
-      payload.append('image', boxFormData.imageFile);
-    }
+    payload.append('retainedImages', JSON.stringify(boxFormData.existingImages));
+    boxFormData.imageFiles.forEach((file) => payload.append('images', file));
 
     return payload;
   };
@@ -127,8 +137,13 @@ const BoxesAndCards = () => {
   const handleBoxSubmit = async (e) => {
     e.preventDefault();
 
-    if (!editingItem && !boxFormData.imageFile) {
-      toast.error('Please select an image file.');
+    if (boxFormData.existingImages.length + boxFormData.imageFiles.length === 0) {
+      toast.error('Please select at least one image file.');
+      return;
+    }
+
+    if (boxFormData.existingImages.length + boxFormData.imageFiles.length > MAX_BOX_IMAGES) {
+      toast.error(`You can upload up to ${MAX_BOX_IMAGES} images per box.`);
       return;
     }
 
@@ -189,7 +204,8 @@ const BoxesAndCards = () => {
       size: box.size,
       price: box.price,
       capacity: box.capacity,
-      imageFile: null,
+      imageFiles: [],
+      existingImages: getBoxImages(box),
       color: box.color || '#F5DEB3',
       description: box.description || ''
     });
@@ -271,7 +287,7 @@ const BoxesAndCards = () => {
   };
 
   const resetForm = () => {
-    setBoxFormData({ name: '', size: '', price: '', capacity: '', imageFile: null, color: '#F5DEB3', description: '' });
+    setBoxFormData({ name: '', size: '', price: '', capacity: '', imageFiles: [], existingImages: [], color: '#F5DEB3', description: '' });
     setCardFormData({ name: '', design: '', imageFile: null, color: '#F5F5F5', description: '' });
     setEditingItem(null);
     setShowForm(false);
@@ -314,11 +330,21 @@ const BoxesAndCards = () => {
             </div>
             <div className="field-row">
               <ImageDropzone
-                label="Image"
+                label="Images"
                 required={!editingItem}
-                files={boxFormData.imageFile ? [boxFormData.imageFile] : []}
-                onFilesChange={(files) => setBoxFormData(prev => ({ ...prev, imageFile: files[0] || null }))}
-                existingImages={!boxFormData.imageFile && editingItem?.image ? [editingItem.image] : []}
+                multiple
+                maxFiles={Math.max(0, MAX_BOX_IMAGES - boxFormData.existingImages.length)}
+                files={boxFormData.imageFiles}
+                onFilesChange={(files) => setBoxFormData(prev => ({ ...prev, imageFiles: files }))}
+                existingImages={boxFormData.existingImages}
+                onRemoveExisting={(_, index) => setBoxFormData(prev => ({
+                  ...prev,
+                  existingImages: prev.existingImages.filter((__, imageIndex) => imageIndex !== index),
+                }))}
+                disabled={boxFormData.existingImages.length >= MAX_BOX_IMAGES}
+                help={boxFormData.existingImages.length >= MAX_BOX_IMAGES
+                  ? 'Remove an existing image before adding another.'
+                  : `Upload up to ${MAX_BOX_IMAGES} images per gift box.`}
               />
               <div className="field">
                 <span className="field-label">Color</span>
@@ -400,7 +426,7 @@ const BoxesAndCards = () => {
                       <tr key={box.id}>
                         <td data-label="Image">
                           <div style={{ width: 48, height: 48, borderRadius: 'var(--radius-sm)', background: box.color, overflow: 'hidden' }}>
-                            <img src={box.image} alt={box.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <img src={getBoxImages(box)[0]} alt={box.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                           </div>
                         </td>
                         <td data-label="Name">{box.name}</td>
