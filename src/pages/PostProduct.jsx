@@ -11,6 +11,7 @@ const categoryOptions = {
     giftsForHim: ['father', 'brother', 'boyfriend', 'son', 'husband', 'friend'],
     giftsForWedding: ['bride', 'groom', 'bridalparty', 'weddinganniversary'],
     FlowersChocolates: ['cake', 'bouquets', 'cakebouquets'],
+    greetingCards: ['birthday', 'anniversary', 'thankyou', 'getwell', 'congratulations', 'love', 'general'],
 };
 
 export default function PostProduct() {
@@ -114,12 +115,19 @@ export default function PostProduct() {
 
     const handleCategoryChange = (e) => {
         const selectedCategory = e.target.value;
+        const isGreetingCard = selectedCategory === 'greetingCards';
         setForm(prev => ({
             ...prev,
             category: selectedCategory,
             products: [{
                 ...prev.products[0],
                 keyGift: '', // reset keyGift on category change
+                ...(isGreetingCard ? {
+                    shortDescription: '',
+                    longDescription: '',
+                    metaTitle: '',
+                    metaDescription: '',
+                } : {}),
             }]
         }));
     };
@@ -158,6 +166,12 @@ export default function PostProduct() {
             originalPrice: form.products[0].originalPrice ? Number(form.products[0].originalPrice) : undefined,
             discount: form.products[0].discount ? Number(form.products[0].discount) : undefined,
         };
+        if (form.category === 'greetingCards') {
+            delete productToSubmit.shortDescription;
+            delete productToSubmit.longDescription;
+            delete productToSubmit.metaTitle;
+            delete productToSubmit.metaDescription;
+        }
         formData.append('products', JSON.stringify([productToSubmit]));
 
         try {
@@ -199,6 +213,7 @@ export default function PostProduct() {
     };
 
     const currentKeyGifts = categoryOptions[form.category] || [];
+    const isGreetingCard = form.category === 'greetingCards';
 
     return (
         <div className="page-shell" style={{ maxWidth: '780px' }}>
@@ -210,7 +225,7 @@ export default function PostProduct() {
                         <Select label="Category" required value={form.category} onChange={handleCategoryChange}>
                             <option value="">Select Category</option>
                             {Object.keys(categoryOptions).map((cat) => (
-                                <option key={cat} value={cat}>{cat}</option>
+                                <option key={cat} value={cat}>{cat === 'greetingCards' ? 'Greeting Cards' : cat}</option>
                             ))}
                         </Select>
 
@@ -275,36 +290,40 @@ export default function PostProduct() {
                         />
                     </div>
 
-                    <Textarea
-                        label="Short Description"
-                        name="shortDescription"
-                        value={form.products[0].shortDescription}
-                        onChange={handleProductChange}
-                    />
+                    {!isGreetingCard && (
+                        <>
+                            <Textarea
+                                label="Short Description"
+                                name="shortDescription"
+                                value={form.products[0].shortDescription}
+                                onChange={handleProductChange}
+                            />
 
-                    <Textarea
-                        label="Long Description"
-                        name="longDescription"
-                        value={form.products[0].longDescription}
-                        onChange={handleProductChange}
-                    />
+                            <Textarea
+                                label="Long Description"
+                                name="longDescription"
+                                value={form.products[0].longDescription}
+                                onChange={handleProductChange}
+                            />
 
-                    <Input
-                        label="Meta Title"
-                        name="metaTitle"
-                        placeholder="SEO — optional"
-                        value={form.products[0].metaTitle}
-                        onChange={handleProductChange}
-                    />
+                            <Input
+                                label="Meta Title"
+                                name="metaTitle"
+                                placeholder="SEO — optional"
+                                value={form.products[0].metaTitle}
+                                onChange={handleProductChange}
+                            />
 
-                    <Textarea
-                        label="Meta Description"
-                        name="metaDescription"
-                        placeholder="SEO — optional, max 160 characters"
-                        value={form.products[0].metaDescription}
-                        onChange={handleProductChange}
-                        maxLength="160"
-                    />
+                            <Textarea
+                                label="Meta Description"
+                                name="metaDescription"
+                                placeholder="SEO — optional, max 160 characters"
+                                value={form.products[0].metaDescription}
+                                onChange={handleProductChange}
+                                maxLength="160"
+                            />
+                        </>
+                    )}
 
                     <ImageDropzone
                         label="Product Images"
