@@ -2,17 +2,52 @@ import { useState } from 'react';
 import { postProduct } from '../api';
 import { PageHeader, Card, Field, Input, Textarea, Select, ImageDropzone, Button, useToast } from '../components/UI';
 
-const categoryOptions = {
-    giftsForCompany: ['newhire', 'ocassion', 'farewell', 'achievement', 'workanniversary'],
-    giftsForReligions: ['eid', 'holi', 'diwali', 'navroz', 'ramadan'],
-    giftsForBabies: ['newborn'],
-    giftsForEveryone: ['couple', 'teacher', 'relative'],
-    giftsForHer: ['mum', 'sister', 'girlfriend', 'daughter', 'wife', 'friend'],
-    giftsForHim: ['father', 'brother', 'boyfriend', 'son', 'husband', 'friend'],
-    giftsForWedding: ['bride', 'groom', 'bridalparty', 'weddinganniversary'],
-    FlowersChocolates: ['cake', 'bouquets', 'cakebouquets'],
-    greetingCards: ['birthday', 'anniversary', 'thankyou', 'getwell', 'congratulations', 'love', 'general'],
-};
+const productCategories = [
+    {
+        value: 'giftsForHim',
+        label: 'Gifts for Him',
+        keyGifts: ['father', 'brother', 'boyfriend', 'son', 'husband', 'friend'],
+    },
+    {
+        value: 'giftsForHer',
+        label: 'Gifts for Her',
+        keyGifts: ['mum', 'sister', 'girlfriend', 'daughter', 'wife', 'friend'],
+    },
+    {
+        value: 'birthday',
+        label: 'Birthday Gifts',
+        keyGifts: ['birthday'],
+    },
+    {
+        value: 'personalized',
+        label: 'Personalized Gifts',
+        keyGifts: ['personalized'],
+    },
+    {
+        value: 'FlowersChocolates',
+        label: 'Floral Arrangements',
+        keyGifts: ['bouquets', 'floralarrangements'],
+    },
+    {
+        value: 'sweetTreats',
+        label: 'Sweet Treats',
+        keyGifts: ['cake', 'brownies', 'cookies', 'chocolates'],
+    },
+    {
+        value: 'greetingCards',
+        label: 'Greeting Cards',
+        keyGifts: ['birthday', 'anniversary', 'thankyou', 'getwell', 'congratulations', 'love', 'general'],
+    },
+    {
+        value: 'giftsForCompany',
+        label: 'Corporate Gifts',
+        keyGifts: ['newhire', 'occasion', 'farewell', 'achievement', 'workanniversary'],
+    },
+];
+
+const categoryOptions = Object.fromEntries(
+    productCategories.map(({ value, keyGifts }) => [value, keyGifts]),
+);
 
 const formatOptionLabel = (value) => value
     .replace(/[-_]+/g, ' ')
@@ -277,8 +312,8 @@ export default function PostProduct() {
                     <div className="field-row">
                         <Select label="Category" required value={form.category} onChange={handleCategoryChange}>
                             <option value="">Select Category</option>
-                            {Object.keys(categoryOptions).map((cat) => (
-                                <option key={cat} value={cat}>{cat === 'greetingCards' ? 'Greeting Cards' : cat}</option>
+                            {productCategories.map((category) => (
+                                <option key={category.value} value={category.value}>{category.label}</option>
                             ))}
                         </Select>
 
