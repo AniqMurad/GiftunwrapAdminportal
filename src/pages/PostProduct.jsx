@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { postProduct } from '../api';
 import { PageHeader, Card, Field, Input, Textarea, Select, ImageDropzone, Button, useToast } from '../components/UI';
+import WhatsInsideEditor from '../components/WhatsInsideEditor';
+import { cleanWhatsInsideItems } from '../utils/whatsInside';
 
 const productCategories = [
     {
@@ -118,6 +120,7 @@ export default function PostProduct() {
                 longDescription: '',
                 metaTitle: '',
                 metaDescription: '',
+                whatsInside: [],
             }
         ]
     });
@@ -210,6 +213,7 @@ export default function PostProduct() {
                     longDescription: '',
                     metaTitle: '',
                     metaDescription: '',
+                    whatsInside: [],
                 } : {}),
             }]
         }));
@@ -253,12 +257,14 @@ export default function PostProduct() {
             price: Number(form.products[0].price),
             originalPrice: form.products[0].originalPrice ? Number(form.products[0].originalPrice) : undefined,
             discount: form.products[0].discount ? Number(form.products[0].discount) : undefined,
+            whatsInside: cleanWhatsInsideItems(form.products[0].whatsInside),
         };
         if (form.category === 'greetingCards') {
             delete productToSubmit.shortDescription;
             delete productToSubmit.longDescription;
             delete productToSubmit.metaTitle;
             delete productToSubmit.metaDescription;
+            delete productToSubmit.whatsInside;
         }
         formData.append('products', JSON.stringify([productToSubmit]));
 
@@ -289,6 +295,7 @@ export default function PostProduct() {
                     longDescription: '',
                     metaTitle: '',
                     metaDescription: '',
+                    whatsInside: [],
                 }]
             });
             setProductImages([]);
@@ -391,6 +398,15 @@ export default function PostProduct() {
                                 name="longDescription"
                                 value={form.products[0].longDescription}
                                 onChange={handleProductChange}
+                            />
+
+                            <WhatsInsideEditor
+                                category={form.category}
+                                items={form.products[0].whatsInside}
+                                onChange={(whatsInside) => setForm((previous) => ({
+                                    ...previous,
+                                    products: [{ ...previous.products[0], whatsInside }],
+                                }))}
                             />
 
                             <Input

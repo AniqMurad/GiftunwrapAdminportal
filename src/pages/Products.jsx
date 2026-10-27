@@ -16,6 +16,8 @@ import {
   useToast,
   useConfirm,
 } from '../components/UI';
+import WhatsInsideEditor from '../components/WhatsInsideEditor';
+import { cleanWhatsInsideItems } from '../utils/whatsInside';
 
 // API functions
 const fetchProducts = () => axios.get('https://giftunwrapbackend.vercel.app/api/products');
@@ -40,6 +42,7 @@ export default function Products() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [editingProduct, setEditingProduct] = useState(null);
+  const [editingCategory, setEditingCategory] = useState('');
   const [editFormData, setEditFormData] = useState({});
   const [newImages, setNewImages] = useState([]);
   const [currentImagesToRetain, setCurrentImagesToRetain] = useState([]);
@@ -93,8 +96,9 @@ export default function Products() {
     }
   };
 
-  const handleEditClick = (product) => {
+  const handleEditClick = (product, category) => {
     setEditingProduct(product._id);
+    setEditingCategory(category);
     setEditFormData({
       _id: product._id,
       name: product.name,
@@ -107,6 +111,7 @@ export default function Products() {
       longDescription: product.longDescription || '',
       metaTitle: product.metaTitle || '',
       metaDescription: product.metaDescription || '',
+      whatsInside: cleanWhatsInsideItems(product.whatsInside || product.contents || product.items),
     });
     setNewImages([]);
     setCurrentImagesToRetain(product.images || []);
@@ -130,6 +135,7 @@ export default function Products() {
       .split(',')
       .map((value) => value.trim())
       .filter(Boolean);
+    productDataToSend.whatsInside = cleanWhatsInsideItems(productDataToSend.whatsInside);
 
     if (newImages.length === 0) {
       productDataToSend.images = currentImagesToRetain;
@@ -140,6 +146,7 @@ export default function Products() {
       await updateProductById(editingProduct, productDataToSend, newImages);
       await getProducts();
       setEditingProduct(null);
+      setEditingCategory('');
       setEditFormData({});
       setNewImages([]);
       setCurrentImagesToRetain([]);
@@ -154,6 +161,7 @@ export default function Products() {
 
   const handleCancelEdit = () => {
     setEditingProduct(null);
+    setEditingCategory('');
     setEditFormData({});
     setNewImages([]);
     setCurrentImagesToRetain([]);
@@ -247,6 +255,17 @@ export default function Products() {
           value={editFormData.longDescription || ''}
           onChange={handleEditFormChange}
         />
+
+        {editingCategory !== 'greetingCards' && (
+          <WhatsInsideEditor
+            category={editingCategory}
+            items={editFormData.whatsInside || []}
+            onChange={(whatsInside) => setEditFormData((previous) => ({
+              ...previous,
+              whatsInside,
+            }))}
+          />
+        )}
 
         <Input
           label="Meta Title"
@@ -353,7 +372,7 @@ function CategorySection({ category, onEdit, onDelete, deletingId }) {
                       </td>
                       <td className="col-actions" data-label="Actions">
                         <div className="dt-action-group">
-                          <Button variant="secondary" size="sm" onClick={() => onEdit(p)} icon={<i className="bi bi-pencil" aria-hidden="true" />}>
+                          <Button variant="secondary" size="sm" onClick={() => onEdit(p, category.category)} icon={<i className="bi bi-pencil" aria-hidden="true" />}>
                             Edit
                           </Button>
                           <Button
