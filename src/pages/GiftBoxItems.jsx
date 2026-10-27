@@ -234,7 +234,7 @@ const GiftBoxItems = () => {
     <div className="page-shell">
       <PageHeader
         title="Gift Box Items"
-        description="Items customers can choose from when building a gift box."
+        description="Reusable catalogue items for Build a Gift Box and product What’s Inside sections."
         actions={
           <Button variant={showForm ? 'secondary' : 'primary'} onClick={() => (showForm ? resetForm() : setShowForm(true))}>
             {showForm ? 'Cancel' : 'Add New Item'}

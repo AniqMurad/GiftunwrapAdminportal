@@ -18,6 +18,7 @@ import {
 } from '../components/UI';
 import WhatsInsideEditor from '../components/WhatsInsideEditor';
 import { cleanWhatsInsideItems } from '../utils/whatsInside';
+import { prepareImagesForUpload } from '../utils/imageCompression';
 
 // API functions
 const fetchProducts = () => axios.get('https://giftunwrapbackend.vercel.app/api/products');
@@ -29,7 +30,6 @@ const updateProductById = (productId, productData, images) => {
   images.forEach((image) => {
     formData.append('images', image);
   });
-
   return axios.put(`https://giftunwrapbackend.vercel.app/api/products/${productId}`, formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
@@ -143,7 +143,12 @@ export default function Products() {
 
     setSavingEdit(true);
     try {
-      await updateProductById(editingProduct, productDataToSend, newImages);
+      const { files: preparedProductImages, totalBytes } = await prepareImagesForUpload(newImages);
+      if (totalBytes > 4 * 1024 * 1024) {
+        toast.error('Images are too large for upload. Please use fewer images or smaller originals.');
+        return;
+      }
+      await updateProductById(editingProduct, productDataToSend, preparedProductImages);
       await getProducts();
       setEditingProduct(null);
       setEditingCategory('');
