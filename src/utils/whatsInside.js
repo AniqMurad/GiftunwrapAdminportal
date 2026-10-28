@@ -12,6 +12,7 @@ export const cleanWhatsInsideItems = (items) => (Array.isArray(items) ? items : 
       ...(typeof normalizedItem?.image === 'string' && normalizedItem.image.trim()
         ? { image: normalizedItem.image.trim() }
         : {}),
+      ...(normalizedItem?.imageOverride === true ? { imageOverride: true } : {}),
     };
   })
   .filter((item) => item.name);

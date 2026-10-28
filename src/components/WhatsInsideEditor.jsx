@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { fetchGiftBoxItems } from '../api';
-import { Button, Select } from './UI';
+import { Button, ImageDropzone, Select } from './UI';
 
 const categoryLabels = {
   'chocolates-snacks': 'Chocolates & Snacks',
@@ -74,6 +74,15 @@ export default function WhatsInsideEditor({ items = [], onChange }) {
     const reordered = [...items];
     [reordered[index], reordered[destination]] = [reordered[destination], reordered[index]];
     onChange(reordered);
+  };
+
+  const updateItemImage = (index, files) => {
+    const updatedItems = [...items];
+    const updatedItem = { ...updatedItems[index] };
+    if (files[0]) updatedItem.imageFile = files[0];
+    else delete updatedItem.imageFile;
+    updatedItems[index] = updatedItem;
+    onChange(updatedItems);
   };
 
   return (
@@ -160,6 +169,14 @@ export default function WhatsInsideEditor({ items = [], onChange }) {
                     {isLegacyItem && <small>Legacy item — replace it with a reusable Gift Box Item when convenient.</small>}
                   </span>
                 </div>
+                <ImageDropzone
+                  label="Item image"
+                  compact
+                  maxFiles={1}
+                  files={storedItem.imageFile ? [storedItem.imageFile] : []}
+                  onFilesChange={(files) => updateItemImage(index, files)}
+                  help="Upload an image for this product’s What’s Inside section. A new image overrides the reusable item image for this product only."
+                />
               </div>
             );
           })}

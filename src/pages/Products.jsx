@@ -23,12 +23,15 @@ import { prepareImagesForUpload } from '../utils/imageCompression';
 // API functions
 const fetchProducts = () => axios.get('https://giftunwrapbackend.vercel.app/api/products');
 const deleteProductById = (productId) => axios.delete(`https://giftunwrapbackend.vercel.app/api/products/${productId}`);
-const updateProductById = (productId, productData, images) => {
+const updateProductById = (productId, productData, images, whatsInsideImages) => {
   const formData = new FormData();
   formData.append('products', JSON.stringify([productData])); // products field should be an array stringified
 
   images.forEach((image) => {
     formData.append('images', image);
+  });
+  whatsInsideImages.forEach(({ index, file }) => {
+    formData.append(`whatsInsideImage_${index}`, file);
   });
   return axios.put(`https://giftunwrapbackend.vercel.app/api/products/${productId}`, formData, {
     headers: {
@@ -130,25 +133,47 @@ export default function Products() {
   };
 
   const handleSaveEdit = async () => {
+    const MAX_PRODUCT_IMAGES = 10;
     let productDataToSend = { ...editFormData };
     productDataToSend.keyGift = String(productDataToSend.keyGift || '')
       .split(',')
       .map((value) => value.trim())
       .filter(Boolean);
     productDataToSend.whatsInside = cleanWhatsInsideItems(productDataToSend.whatsInside);
+    productDataToSend.images = currentImagesToRetain;
 
-    if (newImages.length === 0) {
-      productDataToSend.images = currentImagesToRetain;
+    if (currentImagesToRetain.length + newImages.length === 0) {
+      toast.error('Please keep or upload at least one product image.');
+      return;
+    }
+    if (currentImagesToRetain.length + newImages.length > MAX_PRODUCT_IMAGES) {
+      toast.error(`A product can have up to ${MAX_PRODUCT_IMAGES} images.`);
+      return;
     }
 
     setSavingEdit(true);
     try {
-      const { files: preparedProductImages, totalBytes } = await prepareImagesForUpload(newImages);
+      const whatsInsideImageEntries = (editFormData.whatsInside || [])
+        .map((item, index) => ({ index, file: item.imageFile }))
+        .filter((entry) => entry.file);
+      const [preparedProductUpload, preparedInsideUpload] = await Promise.all([
+        prepareImagesForUpload(newImages),
+        prepareImagesForUpload(whatsInsideImageEntries.map((entry) => entry.file)),
+      ]);
+      const totalBytes = preparedProductUpload.totalBytes + preparedInsideUpload.totalBytes;
       if (totalBytes > 4 * 1024 * 1024) {
         toast.error('Images are too large for upload. Please use fewer images or smaller originals.');
         return;
       }
-      await updateProductById(editingProduct, productDataToSend, preparedProductImages);
+      await updateProductById(
+        editingProduct,
+        productDataToSend,
+        preparedProductUpload.files,
+        preparedInsideUpload.files.map((file, uploadIndex) => ({
+          index: whatsInsideImageEntries[uploadIndex].index,
+          file,
+        })),
+      );
       await getProducts();
       setEditingProduct(null);
       setEditingCategory('');
@@ -291,12 +316,13 @@ export default function Products() {
         <ImageDropzone
           label="Product Images"
           multiple
-          maxFiles={4}
+          maxFiles={10}
           files={newImages}
           onFilesChange={setNewImages}
-          existingImages={newImages.length === 0 ? currentImagesToRetain : []}
+          existingImages={currentImagesToRetain}
           onRemoveExisting={handleRemoveExistingImage}
-          help={newImages.length > 0 ? 'New images will replace the current ones on save.' : 'Upload new images to replace the current ones, or leave as-is to keep them.'}
+          countExistingTowardLimit
+          help="New images are added to the current gallery. Remove individual current images with the × button. Up to 10 images total."
         />
       </Modal>
     </div>

@@ -102,6 +102,7 @@ function MultiCheckboxSelect({ label, options, value, onChange, disabled = false
 
 export default function PostProduct() {
     const MAX_UPLOAD_BYTES = 4 * 1024 * 1024; // Keep request under common serverless body limits
+    const MAX_PRODUCT_IMAGES = 10;
     const toast = useToast();
 
     const [form, setForm] = useState({
@@ -195,15 +196,25 @@ export default function PostProduct() {
         formData.append('products', JSON.stringify([productToSubmit]));
 
         try {
-            const { files: preparedFiles, totalBytes } = await prepareImagesForUpload(productImages);
+            const whatsInsideImageEntries = form.products[0].whatsInside
+                .map((item, index) => ({ index, file: item.imageFile }))
+                .filter((entry) => entry.file);
+            const [preparedProductUpload, preparedInsideUpload] = await Promise.all([
+                prepareImagesForUpload(productImages),
+                prepareImagesForUpload(whatsInsideImageEntries.map((entry) => entry.file)),
+            ]);
+            const totalBytes = preparedProductUpload.totalBytes + preparedInsideUpload.totalBytes;
 
             if (totalBytes > MAX_UPLOAD_BYTES) {
                 toast.error('Images are still too large for upload. Please use fewer images or smaller originals.');
                 return;
             }
 
-            preparedFiles.forEach((file) => {
+            preparedProductUpload.files.forEach((file) => {
                 formData.append('images', file); // 'images' must match multer field name
+            });
+            preparedInsideUpload.files.forEach((file, uploadIndex) => {
+                formData.append(`whatsInsideImage_${whatsInsideImageEntries[uploadIndex].index}`, file);
             });
             await postProduct(formData);
             toast.success('Product posted successfully!');
@@ -357,11 +368,11 @@ export default function PostProduct() {
                         label="Product Images"
                         required
                         multiple
-                        maxFiles={4}
+                        maxFiles={MAX_PRODUCT_IMAGES}
                         accept="image/jpeg, image/png, image/jpg, image/webp"
                         files={productImages}
                         onFilesChange={setProductImages}
-                        help="Images are automatically compressed before upload. Up to 4 images."
+                        help={`Images are automatically compressed before upload. Up to ${MAX_PRODUCT_IMAGES} images.`}
                     />
 
                     <div className="form-actions">
