@@ -99,6 +99,14 @@ const normalizeCategories = (categories) => {
   return current;
 };
 
+const inferPackagingVisibility = (product) => /\b(box|hamper)\b/i.test([
+  product.name,
+  product.subcategory,
+  ...(Array.isArray(product.keyGift) ? product.keyGift : [product.keyGift]),
+  product.shortDescription,
+  product.longDescription,
+].filter(Boolean).join(' '));
+
 export default function Products() {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -166,6 +174,7 @@ export default function Products() {
   };
 
   const handleEditClick = (product, category) => {
+    const whatsInside = cleanWhatsInsideItems(product.whatsInside || product.contents || product.items);
     setEditingProduct(product._id);
     setEditingCategory(category);
     setEditFormData({
@@ -180,7 +189,9 @@ export default function Products() {
       longDescription: product.longDescription || '',
       metaTitle: product.metaTitle || '',
       metaDescription: product.metaDescription || '',
-      whatsInside: cleanWhatsInsideItems(product.whatsInside || product.contents || product.items),
+      showWhatsInside: product.showWhatsInside ?? whatsInside.length > 0,
+      showPackaging: product.showPackaging ?? inferPackagingVisibility(product),
+      whatsInside,
     });
     setNewImages([]);
     setCurrentImagesToRetain(product.images || []);
@@ -207,6 +218,11 @@ export default function Products() {
       .filter(Boolean);
     productDataToSend.whatsInside = cleanWhatsInsideItems(productDataToSend.whatsInside);
     productDataToSend.images = currentImagesToRetain;
+
+    if (productDataToSend.showWhatsInside && productDataToSend.whatsInside.length === 0) {
+      toast.error('Add at least one item before showing the What’s Inside section.');
+      return;
+    }
 
     if (currentImagesToRetain.length + newImages.length === 0) {
       toast.error('Please keep or upload at least one product image.');
@@ -353,14 +369,38 @@ export default function Products() {
         />
 
         {editingCategory !== 'greetingCards' && (
-          <WhatsInsideEditor
-            category={editingCategory}
-            items={editFormData.whatsInside || []}
-            onChange={(whatsInside) => setEditFormData((previous) => ({
-              ...previous,
-              whatsInside,
-            }))}
-          />
+          <>
+            <fieldset className="whats-inside-editor">
+              <legend>Product detail sections</legend>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.65rem', marginBottom: '0.75rem', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={Boolean(editFormData.showWhatsInside)}
+                  onChange={(event) => setEditFormData((previous) => ({ ...previous, showWhatsInside: event.target.checked }))}
+                />
+                <span><strong>Show What&apos;s Inside</strong><br /><small>Display the included-item section on this product page.</small></span>
+              </label>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.65rem', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={Boolean(editFormData.showPackaging)}
+                  onChange={(event) => setEditFormData((previous) => ({ ...previous, showPackaging: event.target.checked }))}
+                />
+                <span><strong>Show How It&apos;s Packaged</strong><br /><small>Display the Gift Unwrap packaging explanation on this product page.</small></span>
+              </label>
+            </fieldset>
+
+            {editFormData.showWhatsInside && (
+              <WhatsInsideEditor
+                category={editingCategory}
+                items={editFormData.whatsInside || []}
+                onChange={(whatsInside) => setEditFormData((previous) => ({
+                  ...previous,
+                  whatsInside,
+                }))}
+              />
+            )}
+          </>
         )}
 
         <Input

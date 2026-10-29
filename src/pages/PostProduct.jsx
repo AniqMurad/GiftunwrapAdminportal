@@ -119,6 +119,8 @@ export default function PostProduct() {
                 longDescription: '',
                 metaTitle: '',
                 metaDescription: '',
+                showWhatsInside: false,
+                showPackaging: false,
                 whatsInside: [],
             }
         ]
@@ -140,6 +142,8 @@ export default function PostProduct() {
                     longDescription: '',
                     metaTitle: '',
                     metaDescription: '',
+                    showWhatsInside: false,
+                    showPackaging: false,
                     whatsInside: [],
                 } : {}),
             }]
@@ -186,11 +190,18 @@ export default function PostProduct() {
             discount: form.products[0].discount ? Number(form.products[0].discount) : undefined,
             whatsInside: cleanWhatsInsideItems(form.products[0].whatsInside),
         };
+        if (productToSubmit.showWhatsInside && productToSubmit.whatsInside.length === 0) {
+            toast.error('Add at least one item before showing the What’s Inside section.');
+            setIsPosting(false);
+            return;
+        }
         if (form.category === 'greetingCards') {
             delete productToSubmit.shortDescription;
             delete productToSubmit.longDescription;
             delete productToSubmit.metaTitle;
             delete productToSubmit.metaDescription;
+            delete productToSubmit.showWhatsInside;
+            delete productToSubmit.showPackaging;
             delete productToSubmit.whatsInside;
         }
         formData.append('products', JSON.stringify([productToSubmit]));
@@ -231,6 +242,8 @@ export default function PostProduct() {
                     longDescription: '',
                     metaTitle: '',
                     metaDescription: '',
+                    showWhatsInside: false,
+                    showPackaging: false,
                     whatsInside: [],
                 }]
             });
@@ -336,14 +349,42 @@ export default function PostProduct() {
                                 onChange={handleProductChange}
                             />
 
-                            <WhatsInsideEditor
-                                category={form.category}
-                                items={form.products[0].whatsInside}
-                                onChange={(whatsInside) => setForm((previous) => ({
-                                    ...previous,
-                                    products: [{ ...previous.products[0], whatsInside }],
-                                }))}
-                            />
+                            <fieldset className="whats-inside-editor">
+                                <legend>Product detail sections</legend>
+                                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.65rem', marginBottom: '0.75rem', cursor: 'pointer' }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={form.products[0].showWhatsInside}
+                                        onChange={(event) => setForm((previous) => ({
+                                            ...previous,
+                                            products: [{ ...previous.products[0], showWhatsInside: event.target.checked }],
+                                        }))}
+                                    />
+                                    <span><strong>Show What&apos;s Inside</strong><br /><small>Display the included-item section on this product page.</small></span>
+                                </label>
+                                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.65rem', cursor: 'pointer' }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={form.products[0].showPackaging}
+                                        onChange={(event) => setForm((previous) => ({
+                                            ...previous,
+                                            products: [{ ...previous.products[0], showPackaging: event.target.checked }],
+                                        }))}
+                                    />
+                                    <span><strong>Show How It&apos;s Packaged</strong><br /><small>Display the Gift Unwrap packaging explanation on this product page.</small></span>
+                                </label>
+                            </fieldset>
+
+                            {form.products[0].showWhatsInside && (
+                                <WhatsInsideEditor
+                                    category={form.category}
+                                    items={form.products[0].whatsInside}
+                                    onChange={(whatsInside) => setForm((previous) => ({
+                                        ...previous,
+                                        products: [{ ...previous.products[0], whatsInside }],
+                                    }))}
+                                />
+                            )}
 
                             <Input
                                 label="Meta Title"
