@@ -210,6 +210,23 @@ export default function PostProduct() {
             setIsPosting(false);
             return;
         }
+        if (productToSubmit.showColorOptions) {
+            const invalidColor = productToSubmit.colorOptions.some((color) => {
+                const name = String(color?.name || '').trim();
+                const hex = String(color?.hex || '').trim();
+                const imageIndex = color?.imageIndex;
+                const hasLinkedImage = imageIndex !== ''
+                    && Number.isInteger(Number(imageIndex))
+                    && Number(imageIndex) >= 0
+                    && Number(imageIndex) < productImages.length;
+                return !name || !/^#[0-9a-f]{6}$/i.test(hex) || !hasLinkedImage;
+            });
+            if (invalidColor) {
+                toast.error('Each color needs a name, a valid hex shade, and a linked product image.');
+                setIsPosting(false);
+                return;
+            }
+        }
         if (form.category === 'greetingCards') {
             delete productToSubmit.shortDescription;
             delete productToSubmit.longDescription;
@@ -354,6 +371,7 @@ export default function PostProduct() {
 
                     <ProductOptionsEditor
                         value={form.products[0]}
+                        imageSources={productImages}
                         onChange={(productOptions) => setForm((previous) => ({
                             ...previous,
                             products: [{ ...previous.products[0], ...productOptions }],

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
   PageHeader,
@@ -108,6 +108,20 @@ const inferPackagingVisibility = (product) => /\b(box|hamper)\b/i.test([
   product.longDescription,
 ].filter(Boolean).join(' '));
 
+const normalizeColorOptionsForEdit = (options, images = []) => (Array.isArray(options) ? options : [])
+  .map((color) => {
+    const source = typeof color === 'string' ? { name: color } : (color || {});
+    const image = String(source.image || '');
+    const imageIndex = image ? images.indexOf(image) : source.imageIndex;
+    return {
+      name: String(source.name || source.color || ''),
+      hex: String(source.hex || '#000000').toUpperCase(),
+      image,
+      imageIndex: imageIndex >= 0 ? imageIndex : '',
+    };
+  })
+  .filter((color) => color.name);
+
 export default function Products() {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -121,6 +135,10 @@ export default function Products() {
   const [deletingId, setDeletingId] = useState(null);
   const toast = useToast();
   const confirm = useConfirm();
+  const productOptionImages = useMemo(
+    () => [...currentImagesToRetain, ...newImages],
+    [currentImagesToRetain, newImages],
+  );
 
   useEffect(() => {
     getProducts();
@@ -196,7 +214,7 @@ export default function Products() {
       showSizeOptions: product.showSizeOptions ?? Boolean(product.sizeOptions?.length),
       sizeOptions: Array.isArray(product.sizeOptions) ? product.sizeOptions : [],
       showColorOptions: product.showColorOptions ?? Boolean(product.colorOptions?.length),
-      colorOptions: Array.isArray(product.colorOptions) ? product.colorOptions : [],
+      colorOptions: normalizeColorOptionsForEdit(product.colorOptions, product.images || []),
     });
     setNewImages([]);
     setCurrentImagesToRetain(product.images || []);
@@ -235,6 +253,24 @@ export default function Products() {
     if (productDataToSend.showColorOptions && productDataToSend.colorOptions.length === 0) {
       toast.error('Add at least one color before enabling color options.');
       return;
+    }
+    if (productDataToSend.showColorOptions) {
+      const invalidColor = productDataToSend.colorOptions.some((color) => {
+        const name = String(color?.name || '').trim();
+        const hex = String(color?.hex || '').trim();
+        const linkedUrl = String(color?.image || '');
+        const linkedIndex = color?.imageIndex;
+        const hasLinkedImage = (linkedUrl && currentImagesToRetain.includes(linkedUrl))
+          || (linkedIndex !== ''
+            && Number.isInteger(Number(linkedIndex))
+            && Number(linkedIndex) >= 0
+            && Number(linkedIndex) < productOptionImages.length);
+        return !name || !/^#[0-9a-f]{6}$/i.test(hex) || !hasLinkedImage;
+      });
+      if (invalidColor) {
+        toast.error('Each color needs a name, a valid hex shade, and a linked product image.');
+        return;
+      }
     }
 
     if (currentImagesToRetain.length + newImages.length === 0) {
@@ -370,6 +406,7 @@ export default function Products() {
 
         <ProductOptionsEditor
           value={editFormData}
+          imageSources={productOptionImages}
           onChange={setEditFormData}
         />
 
