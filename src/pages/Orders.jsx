@@ -228,6 +228,11 @@ export default function Orders() {
                             <strong>{item.name}</strong> x {item.quantity} — ${item.priceAtTimeOfOrder}{' '}
                             <span style={{ color: 'var(--color-text-subtle)' }}>({item.productCategory})</span>
                           </p>
+                          {(item.selectedSize || item.selectedColor) && (
+                            <p className="detail-row" style={{ margin: '0.25rem 0 0' }}>
+                              {[item.selectedSize && `Size: ${item.selectedSize}`, item.selectedColor && `Color: ${item.selectedColor}`].filter(Boolean).join(' · ')}
+                            </p>
+                          )}
                           {item.personalization?.messageMode && (
                             <div className="order-item-personalization">
                               <strong>Card message:</strong>{' '}

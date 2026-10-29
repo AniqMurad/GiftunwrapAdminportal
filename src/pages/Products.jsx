@@ -17,6 +17,7 @@ import {
   useConfirm,
 } from '../components/UI';
 import WhatsInsideEditor from '../components/WhatsInsideEditor';
+import ProductOptionsEditor from '../components/ProductOptionsEditor';
 import { cleanWhatsInsideItems } from '../utils/whatsInside';
 import { prepareImagesForUpload } from '../utils/imageCompression';
 
@@ -192,6 +193,10 @@ export default function Products() {
       showWhatsInside: product.showWhatsInside ?? whatsInside.length > 0,
       showPackaging: product.showPackaging ?? inferPackagingVisibility(product),
       whatsInside,
+      showSizeOptions: product.showSizeOptions ?? Boolean(product.sizeOptions?.length),
+      sizeOptions: Array.isArray(product.sizeOptions) ? product.sizeOptions : [],
+      showColorOptions: product.showColorOptions ?? Boolean(product.colorOptions?.length),
+      colorOptions: Array.isArray(product.colorOptions) ? product.colorOptions : [],
     });
     setNewImages([]);
     setCurrentImagesToRetain(product.images || []);
@@ -221,6 +226,14 @@ export default function Products() {
 
     if (productDataToSend.showWhatsInside && productDataToSend.whatsInside.length === 0) {
       toast.error('Add at least one item before showing the What’s Inside section.');
+      return;
+    }
+    if (productDataToSend.showSizeOptions && productDataToSend.sizeOptions.length === 0) {
+      toast.error('Select at least one size before enabling size options.');
+      return;
+    }
+    if (productDataToSend.showColorOptions && productDataToSend.colorOptions.length === 0) {
+      toast.error('Add at least one color before enabling color options.');
       return;
     }
 
@@ -354,6 +367,11 @@ export default function Products() {
             onChange={handleEditFormChange}
           />
         </div>
+
+        <ProductOptionsEditor
+          value={editFormData}
+          onChange={setEditFormData}
+        />
 
         <Textarea
           label="Short Description"

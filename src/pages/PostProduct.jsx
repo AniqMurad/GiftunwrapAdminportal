@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { postProduct } from '../api';
 import { PageHeader, Card, Field, Input, Textarea, Select, ImageDropzone, Button, useToast } from '../components/UI';
 import WhatsInsideEditor from '../components/WhatsInsideEditor';
+import ProductOptionsEditor from '../components/ProductOptionsEditor';
 import { cleanWhatsInsideItems } from '../utils/whatsInside';
 import { prepareImagesForUpload } from '../utils/imageCompression';
 
@@ -122,6 +123,10 @@ export default function PostProduct() {
                 showWhatsInside: false,
                 showPackaging: false,
                 whatsInside: [],
+                showSizeOptions: false,
+                sizeOptions: [],
+                showColorOptions: false,
+                colorOptions: [],
             }
         ]
     });
@@ -195,6 +200,16 @@ export default function PostProduct() {
             setIsPosting(false);
             return;
         }
+        if (productToSubmit.showSizeOptions && productToSubmit.sizeOptions.length === 0) {
+            toast.error('Select at least one size before enabling size options.');
+            setIsPosting(false);
+            return;
+        }
+        if (productToSubmit.showColorOptions && productToSubmit.colorOptions.length === 0) {
+            toast.error('Add at least one color before enabling color options.');
+            setIsPosting(false);
+            return;
+        }
         if (form.category === 'greetingCards') {
             delete productToSubmit.shortDescription;
             delete productToSubmit.longDescription;
@@ -245,6 +260,10 @@ export default function PostProduct() {
                     showWhatsInside: false,
                     showPackaging: false,
                     whatsInside: [],
+                    showSizeOptions: false,
+                    sizeOptions: [],
+                    showColorOptions: false,
+                    colorOptions: [],
                 }]
             });
             setProductImages([]);
@@ -332,6 +351,14 @@ export default function PostProduct() {
                             onChange={handleProductChange}
                         />
                     </div>
+
+                    <ProductOptionsEditor
+                        value={form.products[0]}
+                        onChange={(productOptions) => setForm((previous) => ({
+                            ...previous,
+                            products: [{ ...previous.products[0], ...productOptions }],
+                        }))}
+                    />
 
                     {!isGreetingCard && (
                         <>
