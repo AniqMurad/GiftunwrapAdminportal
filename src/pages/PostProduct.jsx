@@ -27,7 +27,7 @@ const productCategories = [
         keyGifts: ['personalized'],
     },
     {
-        value: 'FlowersChocolates',
+        value: 'floralArrangements',
         label: 'Floral Arrangements',
         keyGifts: ['bouquets', 'floralarrangements'],
     },

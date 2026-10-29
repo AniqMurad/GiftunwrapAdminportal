@@ -40,6 +40,65 @@ const updateProductById = (productId, productData, images, whatsInsideImages) =>
   });
 };
 
+const categoryLabels = {
+  giftsForHim: 'Gifts for Him',
+  giftsForHer: 'Gifts for Her',
+  birthday: 'Birthday Gifts',
+  personalized: 'Personalized Gifts',
+  floralArrangements: 'Floral Arrangements',
+  sweetTreats: 'Sweet Treats',
+  greetingCards: 'Greeting Cards',
+  giftsForCompany: 'Corporate Gifts',
+};
+
+const categoryOrder = Object.keys(categoryLabels);
+const obsoleteCategories = new Set(['giftsForReligions', 'FlowersChocolates']);
+const sweetProductTerms = /\b(cake|cakes|chocolate|chocolates|brownie|brownies|cookie|cookies|dessert|desserts|candy|candies|truffle|truffles|confection|confections)\b|\bsweet treats?\b/i;
+const floralProductTerms = /\b(flower|flowers|floral|bouquet|bouquets|bloom|blooms|rose|roses|sunflower|sunflowers)\b/i;
+
+const productSearchText = (product) => [
+  product.name,
+  ...(Array.isArray(product.keyGift) ? product.keyGift : [product.keyGift]),
+  product.subcategory,
+  product.shortDescription,
+  product.longDescription,
+  product.metaTitle,
+  product.metaDescription,
+].filter(Boolean).join(' ');
+
+const mergeProducts = (...productLists) => {
+  const merged = new Map();
+  productLists.flat().forEach((product) => {
+    const key = product.id != null ? `id:${product.id}` : `_id:${product._id}`;
+    if (!merged.has(key)) merged.set(key, product);
+  });
+  return [...merged.values()];
+};
+
+const normalizeCategories = (categories) => {
+  const sourceCategories = Array.isArray(categories) ? categories : [];
+  const religious = sourceCategories.find((entry) => entry.category === 'giftsForReligions');
+  const mixed = sourceCategories.find((entry) => entry.category === 'FlowersChocolates');
+  const current = sourceCategories.filter((entry) => !obsoleteCategories.has(entry.category));
+
+  if (religious || mixed) {
+    const floral = current.find((entry) => entry.category === 'floralArrangements');
+    const sweet = current.find((entry) => entry.category === 'sweetTreats');
+    const mixedProducts = mixed?.products || [];
+    const floralFromMixed = mixedProducts.filter((product) => {
+      const text = productSearchText(product);
+      return floralProductTerms.test(text) || !sweetProductTerms.test(text);
+    });
+    const sweetFromMixed = mixedProducts.filter((product) => sweetProductTerms.test(productSearchText(product)));
+    const remaining = current.filter((entry) => !['floralArrangements', 'sweetTreats'].includes(entry.category));
+    remaining.push({ ...(floral || {}), category: 'floralArrangements', products: mergeProducts(floral?.products || [], religious?.products || [], floralFromMixed) });
+    remaining.push({ ...(sweet || {}), category: 'sweetTreats', products: mergeProducts(sweet?.products || [], sweetFromMixed) });
+    return remaining;
+  }
+
+  return current;
+};
+
 export default function Products() {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -62,7 +121,14 @@ export default function Products() {
     try {
       setLoading(true);
       const response = await fetchProducts();
-      setCategories(response.data);
+      const currentCategories = normalizeCategories(response.data)
+        .sort((left, right) => {
+          const leftIndex = categoryOrder.indexOf(left.category);
+          const rightIndex = categoryOrder.indexOf(right.category);
+          return (leftIndex < 0 ? Number.MAX_SAFE_INTEGER : leftIndex)
+            - (rightIndex < 0 ? Number.MAX_SAFE_INTEGER : rightIndex);
+        });
+      setCategories(currentCategories);
       setError(null);
     } catch (err) {
       console.error('Error fetching products:', err);
@@ -215,7 +281,7 @@ export default function Products() {
       ) : (
         categories.map((cat) => (
           <CategorySection
-            key={cat._id}
+            key={cat._id || cat.category}
             category={cat}
             onEdit={handleEditClick}
             onDelete={handleDelete}
@@ -336,7 +402,7 @@ function CategorySection({ category, onEdit, onDelete, deletingId }) {
     <div style={{ marginBottom: 'var(--space-7)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
         <h3 style={{ margin: 0, fontSize: '1.05rem', textTransform: 'capitalize', color: 'var(--color-text)' }}>
-          {category.category}
+          {categoryLabels[category.category] || category.category}
         </h3>
         <Badge variant="neutral">{category.products.length} products</Badge>
       </div>
