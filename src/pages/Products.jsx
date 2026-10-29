@@ -122,6 +122,15 @@ const normalizeColorOptionsForEdit = (options, images = []) => (Array.isArray(op
   })
   .filter((color) => color.name);
 
+const normalizeSizeOptionsForEdit = (options, fallbackPrice) => (Array.isArray(options) ? options : [])
+  .map((size) => typeof size === 'string'
+    ? { name: size, price: fallbackPrice }
+    : {
+        name: String(size?.name || size?.size || ''),
+        price: size?.price ?? fallbackPrice,
+      })
+  .filter((size) => size.name);
+
 export default function Products() {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -212,7 +221,7 @@ export default function Products() {
       showPackaging: product.showPackaging ?? inferPackagingVisibility(product),
       whatsInside,
       showSizeOptions: product.showSizeOptions ?? Boolean(product.sizeOptions?.length),
-      sizeOptions: Array.isArray(product.sizeOptions) ? product.sizeOptions : [],
+      sizeOptions: normalizeSizeOptionsForEdit(product.sizeOptions, product.price),
       showColorOptions: product.showColorOptions ?? Boolean(product.colorOptions?.length),
       colorOptions: normalizeColorOptionsForEdit(product.colorOptions, product.images || []),
     });
@@ -248,6 +257,14 @@ export default function Products() {
     }
     if (productDataToSend.showSizeOptions && productDataToSend.sizeOptions.length === 0) {
       toast.error('Select at least one size before enabling size options.');
+      return;
+    }
+    if (productDataToSend.showSizeOptions && productDataToSend.sizeOptions.some((size) => (
+      !String(size?.name || size?.size || '').trim()
+      || !Number.isFinite(Number(size?.price))
+      || Number(size.price) <= 0
+    ))) {
+      toast.error('Enter a valid price for every enabled size.');
       return;
     }
     if (productDataToSend.showColorOptions && productDataToSend.colorOptions.length === 0) {

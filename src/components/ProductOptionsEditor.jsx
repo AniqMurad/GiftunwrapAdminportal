@@ -5,12 +5,6 @@ const SIZE_OPTIONS = ['Small', 'Medium', 'Large'];
 const DEFAULT_COLOR = '#FF2B3A';
 const EMPTY_IMAGE_SOURCES = [];
 
-const toggleListValue = (values, value) => (
-  values.includes(value)
-    ? values.filter((entry) => entry !== value)
-    : [...values, value]
-);
-
 const validHex = (value) => /^#[0-9a-f]{6}$/i.test(String(value || '').trim());
 const displayHex = (value) => (validHex(value) ? String(value).trim().toUpperCase() : DEFAULT_COLOR);
 
@@ -26,8 +20,20 @@ const normalizeColor = (color) => {
   };
 };
 
+const normalizeSize = (size, fallbackPrice) => {
+  if (typeof size === 'string') {
+    return { name: size, price: fallbackPrice || '' };
+  }
+  return {
+    name: String(size?.name || size?.size || ''),
+    price: size?.price ?? fallbackPrice ?? '',
+  };
+};
+
 export default function ProductOptionsEditor({ value, onChange, imageSources = EMPTY_IMAGE_SOURCES }) {
-  const sizeOptions = Array.isArray(value.sizeOptions) ? value.sizeOptions : [];
+  const sizeOptions = (Array.isArray(value.sizeOptions) ? value.sizeOptions : [])
+    .map((size) => normalizeSize(size, value.price))
+    .filter((size) => size.name);
   const colorOptions = (Array.isArray(value.colorOptions) ? value.colorOptions : []).map(normalizeColor);
 
   const imageOptions = useMemo(() => imageSources.map((source, index) => {
@@ -53,6 +59,17 @@ export default function ProductOptionsEditor({ value, onChange, imageSources = E
       colorIndex === index ? { ...color, ...changes } : color
     )),
   });
+  const updateSize = (name, changes) => update({
+    sizeOptions: sizeOptions.map((size) => (size.name === name ? { ...size, ...changes } : size)),
+  });
+  const toggleSize = (name) => {
+    const exists = sizeOptions.some((size) => size.name === name);
+    update({
+      sizeOptions: exists
+        ? sizeOptions.filter((size) => size.name !== name)
+        : [...sizeOptions, { name, price: value.price || '' }],
+    });
+  };
 
   const selectedImageIndex = (color) => {
     const urlMatch = imageOptions.find((option) => option.url && option.url === color.image);
@@ -80,17 +97,35 @@ export default function ProductOptionsEditor({ value, onChange, imageSources = E
       </label>
 
       {value.showSizeOptions && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', margin: '0 0 1rem 1.75rem' }} role="group" aria-label="Available sizes">
+        <div style={{ display: 'grid', gap: '0.6rem', margin: '0 0 1rem 1.75rem' }} role="group" aria-label="Available sizes and prices">
           {SIZE_OPTIONS.map((size) => (
-            <label key={size} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={sizeOptions.includes(size)}
-                onChange={() => update({ sizeOptions: toggleListValue(sizeOptions, size) })}
-              />
-              <span>{size}</span>
-            </label>
+            <div key={size} style={{ display: 'grid', gridTemplateColumns: '110px minmax(150px, 240px)', gap: '0.75rem', alignItems: 'center' }}>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={sizeOptions.some((option) => option.name === size)}
+                  onChange={() => toggleSize(size)}
+                />
+                <span>{size}</span>
+              </label>
+              {sizeOptions.some((option) => option.name === size) && (
+                <label>
+                  <span className="sr-only">{size} price</span>
+                  <input
+                    className="input"
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={sizeOptions.find((option) => option.name === size)?.price ?? ''}
+                    placeholder={`${size} price in PKR`}
+                    onChange={(event) => updateSize(size, { price: event.target.value })}
+                    aria-label={`${size} price in PKR`}
+                  />
+                </label>
+              )}
+            </div>
           ))}
+          <small>Enter the exact selling price for every enabled size.</small>
         </div>
       )}
 

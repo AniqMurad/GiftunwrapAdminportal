@@ -205,6 +205,15 @@ export default function PostProduct() {
             setIsPosting(false);
             return;
         }
+        if (productToSubmit.showSizeOptions && productToSubmit.sizeOptions.some((size) => (
+            !String(size?.name || size?.size || '').trim()
+            || !Number.isFinite(Number(size?.price))
+            || Number(size.price) <= 0
+        ))) {
+            toast.error('Enter a valid price for every enabled size.');
+            setIsPosting(false);
+            return;
+        }
         if (productToSubmit.showColorOptions && productToSubmit.colorOptions.length === 0) {
             toast.error('Add at least one color before enabling color options.');
             setIsPosting(false);
