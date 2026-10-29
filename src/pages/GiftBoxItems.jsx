@@ -22,7 +22,7 @@ import {
   usePagination,
   useToast,
   useConfirm,
-} from '../components/ui';
+} from '../components/UI';
 
 const categories = [
   'chocolates-snacks',
@@ -32,7 +32,8 @@ const categories = [
   'fragrances',
   'clothing',
   'shoes',
-  'beauty-personal-care'
+  'beauty-personal-care',
+  'gift-cards'
 ];
 
 const categoryLabels = {
@@ -43,7 +44,8 @@ const categoryLabels = {
   'fragrances': 'Fragrances',
   'clothing': 'Clothing',
   'shoes': 'Shoes',
-  'beauty-personal-care': 'Beauty & Personal Care'
+  'beauty-personal-care': 'Beauty & Personal Care',
+  'gift-cards': 'Gift Cards'
 };
 
 const GiftBoxItems = () => {
@@ -232,7 +234,7 @@ const GiftBoxItems = () => {
     <div className="page-shell">
       <PageHeader
         title="Gift Box Items"
-        description="Items customers can choose from when building a gift box."
+        description="Reusable catalogue items for Build a Gift Box and product What’s Inside sections."
         actions={
           <Button variant={showForm ? 'secondary' : 'primary'} onClick={() => (showForm ? resetForm() : setShowForm(true))}>
             {showForm ? 'Cancel' : 'Add New Item'}

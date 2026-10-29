@@ -10,7 +10,7 @@ import {
   Card,
   useToast,
   useConfirm,
-} from '../components/ui';
+} from '../components/UI';
 
 export default function Messages() {
   const [messages, setMessages] = useState([]);
