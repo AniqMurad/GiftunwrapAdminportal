@@ -223,10 +223,25 @@ export default function Orders() {
                     {order.orderItems?.map((item, index) => (
                       <div key={item.productId || index} className="order-item-row">
                         {item.imageUrl && <img src={item.imageUrl} alt={item.name} className="order-item-thumb" />}
-                        <span className="detail-row" style={{ margin: 0 }}>
-                          <strong>{item.name}</strong> x {item.quantity} — ${item.priceAtTimeOfOrder}{' '}
-                          <span style={{ color: 'var(--color-text-subtle)' }}>({item.productCategory})</span>
-                        </span>
+                        <div className="order-item-copy">
+                          <p className="detail-row" style={{ margin: 0 }}>
+                            <strong>{item.name}</strong> x {item.quantity} — ${item.priceAtTimeOfOrder}{' '}
+                            <span style={{ color: 'var(--color-text-subtle)' }}>({item.productCategory})</span>
+                          </p>
+                          {item.personalization?.messageMode && (
+                            <div className="order-item-personalization">
+                              <strong>Card message:</strong>{' '}
+                              {item.personalization.messageMode === 'blank' ? (
+                                <span>Leave blank</span>
+                              ) : (
+                                <>
+                                  <span>To {item.personalization.to}, from {item.personalization.from}</span>
+                                  <p>&ldquo;{item.personalization.message}&rdquo;</p>
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
