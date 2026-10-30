@@ -1,66 +1,20 @@
-import { useEffect, useMemo, useState } from 'react';
-import { fetchGiftBoxItems } from '../api';
-import { Button, ImageDropzone, Select } from './UI';
+import { Button, ImageDropzone, Input, Textarea } from './UI';
 
-const categoryLabels = {
-  'chocolates-snacks': 'Chocolates & Snacks',
-  flowers: 'Flowers',
-  'customised-items': 'Customised Items',
-  'jewellery-accessories': 'Jewellery & Accessories',
-  fragrances: 'Fragrances',
-  clothing: 'Clothing',
-  shoes: 'Shoes',
-  'beauty-personal-care': 'Beauty & Personal Care',
-  'gift-cards': 'Gift Cards',
-};
-
-const reusableItemSnapshot = (item) => ({
-  giftBoxItemId: Number(item.id),
-  name: item.name,
-  description: item.description || '',
-  image: item.image,
+const emptyItem = () => ({
+  name: '',
+  description: '',
+  image: '',
 });
 
 export default function WhatsInsideEditor({ items = [], onChange }) {
-  const [catalogueItems, setCatalogueItems] = useState([]);
-  const [selectedItemId, setSelectedItemId] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState('');
-
-  useEffect(() => {
-    let active = true;
-
-    fetchGiftBoxItems()
-      .then((response) => {
-        if (active) setCatalogueItems(Array.isArray(response.data) ? response.data : []);
-      })
-      .catch(() => {
-        if (active) setLoadError('Reusable items could not be loaded.');
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  const catalogueById = useMemo(
-    () => new Map(catalogueItems.map((item) => [Number(item.id), item])),
-    [catalogueItems],
-  );
-  const selectedIds = useMemo(
-    () => new Set(items.map((item) => Number(item.giftBoxItemId)).filter(Number.isFinite)),
-    [items],
-  );
-  const availableItems = catalogueItems.filter((item) => !selectedIds.has(Number(item.id)));
-
   const addItem = () => {
-    const catalogueItem = catalogueById.get(Number(selectedItemId));
-    if (!catalogueItem) return;
-    onChange([...items, reusableItemSnapshot(catalogueItem)]);
-    setSelectedItemId('');
+    onChange([...items, emptyItem()]);
+  };
+
+  const updateItem = (index, changes) => {
+    onChange(items.map((item, itemIndex) => (
+      itemIndex === index ? { ...item, ...changes } : item
+    )));
   };
 
   const removeItem = (index) => {
@@ -77,111 +31,97 @@ export default function WhatsInsideEditor({ items = [], onChange }) {
   };
 
   const updateItemImage = (index, files) => {
-    const updatedItems = [...items];
-    const updatedItem = { ...updatedItems[index] };
-    if (files[0]) updatedItem.imageFile = files[0];
-    else delete updatedItem.imageFile;
-    updatedItems[index] = updatedItem;
-    onChange(updatedItems);
+    updateItem(index, { imageFile: files[0] });
   };
 
   return (
     <fieldset className="whats-inside-editor">
       <legend>What&apos;s Inside</legend>
       <p>
-        Select reusable items from Gift Box Items. Their storefront name, image, and short description stay linked to the catalogue.
+        Add the contents for this product only. Enter each item&apos;s text and upload its own image.
       </p>
 
-      <div className="whats-inside-picker">
-        <Select
-          label="Reusable Gift Box Item"
-          value={selectedItemId}
-          onChange={(event) => setSelectedItemId(event.target.value)}
-          disabled={loading || availableItems.length === 0}
-        >
-          <option value="">{loading ? 'Loading items…' : 'Choose an item'}</option>
-          {availableItems.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.name} — {categoryLabels[item.category] || item.category}
-            </option>
-          ))}
-        </Select>
-        <Button type="button" variant="secondary" onClick={addItem} disabled={!selectedItemId}>
-          Add item
-        </Button>
-        <Button type="button" variant="ghost" onClick={() => window.open('/gift-box-items', '_blank', 'noopener,noreferrer')}>
-          Manage Gift Box Items
-        </Button>
-      </div>
-
-      {loadError && <p className="whats-inside-error" role="alert">{loadError}</p>}
-
       {items.length === 0 ? (
-        <div className="whats-inside-empty">No included items selected yet.</div>
+        <div className="whats-inside-empty">No included items added yet.</div>
       ) : (
         <div className="whats-inside-list">
-          {items.map((storedItem, index) => {
-            const catalogueItem = catalogueById.get(Number(storedItem.giftBoxItemId));
-            const item = catalogueItem || storedItem;
-            const isLegacyItem = !storedItem.giftBoxItemId;
-
-            return (
-              <div className="whats-inside-item" key={`${storedItem.giftBoxItemId || 'legacy'}-${index}`}>
-                <div className="whats-inside-item-heading">
-                  <strong>Item {index + 1}</strong>
-                  <div className="whats-inside-item-actions">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      iconOnly
-                      aria-label={`Move item ${index + 1} up`}
-                      disabled={index === 0}
-                      onClick={() => moveItem(index, -1)}
-                      icon={<i className="bi bi-arrow-up" aria-hidden="true" />}
-                    />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      iconOnly
-                      aria-label={`Move item ${index + 1} down`}
-                      disabled={index === items.length - 1}
-                      onClick={() => moveItem(index, 1)}
-                      icon={<i className="bi bi-arrow-down" aria-hidden="true" />}
-                    />
-                    <Button
-                      variant="danger-ghost"
-                      size="sm"
-                      iconOnly
-                      aria-label={`Remove item ${index + 1}`}
-                      onClick={() => removeItem(index)}
-                      icon={<i className="bi bi-trash3" aria-hidden="true" />}
-                    />
-                  </div>
+          {items.map((item, index) => (
+            <div className="whats-inside-item" key={`product-content-${index}`}>
+              <div className="whats-inside-item-heading">
+                <strong>Item {index + 1}</strong>
+                <div className="whats-inside-item-actions">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    iconOnly
+                    aria-label={`Move item ${index + 1} up`}
+                    disabled={index === 0}
+                    onClick={() => moveItem(index, -1)}
+                    icon={<i className="bi bi-arrow-up" aria-hidden="true" />}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    iconOnly
+                    aria-label={`Move item ${index + 1} down`}
+                    disabled={index === items.length - 1}
+                    onClick={() => moveItem(index, 1)}
+                    icon={<i className="bi bi-arrow-down" aria-hidden="true" />}
+                  />
+                  <Button
+                    type="button"
+                    variant="danger-ghost"
+                    size="sm"
+                    iconOnly
+                    aria-label={`Remove item ${index + 1}`}
+                    onClick={() => removeItem(index)}
+                    icon={<i className="bi bi-trash3" aria-hidden="true" />}
+                  />
                 </div>
+              </div>
 
-                <div className="whats-inside-catalogue-item">
-                  <span className="whats-inside-catalogue-image">
-                    {item.image ? <img src={item.image} alt="" /> : <i className="bi bi-image" aria-hidden="true" />}
-                  </span>
-                  <span className="whats-inside-catalogue-copy">
-                    <strong>{item.name || 'Legacy included item'}</strong>
-                    {item.description && <span>{item.description}</span>}
-                    {isLegacyItem && <small>Legacy item — replace it with a reusable Gift Box Item when convenient.</small>}
-                  </span>
-                </div>
+              <div className="whats-inside-manual-fields">
+                <Input
+                  label="Item name"
+                  required
+                  value={item.name || ''}
+                  placeholder="e.g. Fresh yellow sunflowers"
+                  onChange={(event) => updateItem(index, { name: event.target.value })}
+                />
+                <Textarea
+                  label="Item description"
+                  value={item.description || ''}
+                  placeholder="Optional short detail about this item"
+                  rows={3}
+                  onChange={(event) => updateItem(index, { description: event.target.value })}
+                />
                 <ImageDropzone
                   label="Item image"
+                  required
                   compact
                   maxFiles={1}
-                  files={storedItem.imageFile ? [storedItem.imageFile] : []}
+                  files={item.imageFile ? [item.imageFile] : []}
+                  existingImages={!item.imageFile && item.image ? [item.image] : []}
+                  onRemoveExisting={() => updateItem(index, { image: '' })}
                   onFilesChange={(files) => updateItemImage(index, files)}
-                  help="Upload an image for this product’s What’s Inside section. A new image overrides the reusable item image for this product only."
+                  help="Upload one image for this item. A new upload replaces its current image."
                 />
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       )}
+
+      <Button
+        type="button"
+        variant="secondary"
+        onClick={addItem}
+        icon={<i className="bi bi-plus-lg" aria-hidden="true" />}
+      >
+        Add What&apos;s Inside item
+      </Button>
     </fieldset>
   );
 }

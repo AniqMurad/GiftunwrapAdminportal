@@ -3,7 +3,7 @@ import { postProduct } from '../api';
 import { PageHeader, Card, Field, Input, Textarea, Select, ImageDropzone, Button, useToast } from '../components/UI';
 import WhatsInsideEditor from '../components/WhatsInsideEditor';
 import ProductOptionsEditor from '../components/ProductOptionsEditor';
-import { cleanWhatsInsideItems } from '../utils/whatsInside';
+import { cleanWhatsInsideItems, hasCompleteWhatsInsideItems } from '../utils/whatsInside';
 import { prepareImagesForUpload } from '../utils/imageCompression';
 
 const productCategories = [
@@ -195,8 +195,8 @@ export default function PostProduct() {
             discount: form.products[0].discount ? Number(form.products[0].discount) : undefined,
             whatsInside: cleanWhatsInsideItems(form.products[0].whatsInside),
         };
-        if (productToSubmit.showWhatsInside && productToSubmit.whatsInside.length === 0) {
-            toast.error('Add at least one item before showing the What’s Inside section.');
+        if (productToSubmit.showWhatsInside && !hasCompleteWhatsInsideItems(form.products[0].whatsInside)) {
+            toast.error('Each What’s Inside item needs a name and an image.');
             setIsPosting(false);
             return;
         }

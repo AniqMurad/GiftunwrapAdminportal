@@ -18,7 +18,7 @@ import {
 } from '../components/UI';
 import WhatsInsideEditor from '../components/WhatsInsideEditor';
 import ProductOptionsEditor from '../components/ProductOptionsEditor';
-import { cleanWhatsInsideItems } from '../utils/whatsInside';
+import { cleanWhatsInsideItems, hasCompleteWhatsInsideItems } from '../utils/whatsInside';
 import { prepareImagesForUpload } from '../utils/imageCompression';
 
 // API functions
@@ -251,8 +251,8 @@ export default function Products() {
     productDataToSend.whatsInside = cleanWhatsInsideItems(productDataToSend.whatsInside);
     productDataToSend.images = currentImagesToRetain;
 
-    if (productDataToSend.showWhatsInside && productDataToSend.whatsInside.length === 0) {
-      toast.error('Add at least one item before showing the What’s Inside section.');
+    if (productDataToSend.showWhatsInside && !hasCompleteWhatsInsideItems(editFormData.whatsInside)) {
+      toast.error('Each What’s Inside item needs a name and an image.');
       return;
     }
     if (productDataToSend.showSizeOptions && productDataToSend.sizeOptions.length === 0) {
