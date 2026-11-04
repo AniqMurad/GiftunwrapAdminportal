@@ -48,6 +48,12 @@ const categoryLabels = {
   'gift-cards': 'Gift Cards'
 };
 
+const profileLabels = {
+  'for-him': 'For Him',
+  'for-her': 'For Her',
+  'unisex': 'Unisex / Both'
+};
+
 const GiftBoxItems = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -60,6 +66,7 @@ const GiftBoxItems = () => {
     name: '',
     price: '',
     category: 'chocolates-snacks',
+    profile: 'unisex',
     imageFile: null,
     description: '',
     colorVariants: []
@@ -117,6 +124,7 @@ const GiftBoxItems = () => {
     payload.append('name', formData.name);
     payload.append('price', formData.price);
     payload.append('category', formData.category);
+    payload.append('profile', formData.profile);
     payload.append('description', formData.description || '');
 
     if (formData.imageFile) {
@@ -171,6 +179,7 @@ const GiftBoxItems = () => {
       name: item.name,
       price: item.price,
       category: item.category,
+      profile: item.profile || 'unisex',
       imageFile: null,
       description: item.description || '',
       colorVariants: (item.colorVariants || []).map(v => ({
@@ -222,6 +231,7 @@ const GiftBoxItems = () => {
       name: '',
       price: '',
       category: 'chocolates-snacks',
+      profile: 'unisex',
       imageFile: null,
       description: '',
       colorVariants: []
@@ -258,8 +268,14 @@ const GiftBoxItems = () => {
                   <option key={cat} value={cat}>{categoryLabels[cat]}</option>
                 ))}
               </Select>
-              <Textarea label="Description" name="description" rows="3" value={formData.description} onChange={handleInputChange} />
+              <Select label="Profile" required name="profile" value={formData.profile} onChange={handleInputChange}>
+                <option value="unisex">Unisex / Both</option>
+                <option value="for-him">For Him</option>
+                <option value="for-her">For Her</option>
+              </Select>
             </div>
+
+            <Textarea label="Description" name="description" rows="3" value={formData.description} onChange={handleInputChange} />
 
             <ImageDropzone
               label="Item Image"
@@ -322,7 +338,7 @@ const GiftBoxItems = () => {
           <div className="dt-scroll">
             <table className="dt-table">
               <tbody>
-                <TableSkeleton rows={6} columns={6} />
+                <TableSkeleton rows={6} columns={7} />
               </tbody>
             </table>
           </div>
@@ -339,6 +355,7 @@ const GiftBoxItems = () => {
                     <th>Image</th>
                     <th>Name</th>
                     <th>Category</th>
+                    <th>Profile</th>
                     <th>Price</th>
                     <th>Status</th>
                     <th className="col-actions">Actions</th>
@@ -359,6 +376,7 @@ const GiftBoxItems = () => {
                       </td>
                       <td data-label="Name">{item.name}</td>
                       <td data-label="Category">{categoryLabels[item.category] || item.category}</td>
+                      <td data-label="Profile">{profileLabels[item.profile] || profileLabels.unisex}</td>
                       <td data-label="Price">PKR {item.price.toFixed(2)}</td>
                       <td data-label="Status">
                         <Badge variant={item.inStock ? 'success' : 'danger'}>{item.inStock ? 'In Stock' : 'Out of Stock'}</Badge>
