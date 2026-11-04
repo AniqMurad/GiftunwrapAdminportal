@@ -30,11 +30,18 @@ const normalizeSize = (size, fallbackPrice) => {
   };
 };
 
+const normalizePhotoBundle = (option) => ({
+  photoCount: option?.photoCount ?? option?.count ?? '',
+  price: option?.price ?? '',
+});
+
 export default function ProductOptionsEditor({ value, onChange, imageSources = EMPTY_IMAGE_SOURCES, allowCustomerImages = false }) {
   const sizeOptions = (Array.isArray(value.sizeOptions) ? value.sizeOptions : [])
     .map((size) => normalizeSize(size, value.price))
     .filter((size) => size.name);
   const colorOptions = (Array.isArray(value.colorOptions) ? value.colorOptions : []).map(normalizeColor);
+  const photoBundleOptions = (Array.isArray(value.photoBundleOptions) ? value.photoBundleOptions : [])
+    .map(normalizePhotoBundle);
 
   const imageOptions = useMemo(() => imageSources.map((source, index) => {
     const isFile = typeof File !== 'undefined' && source instanceof File;
@@ -70,6 +77,11 @@ export default function ProductOptionsEditor({ value, onChange, imageSources = E
         : [...sizeOptions, { name, price: value.price || '' }],
     });
   };
+  const updatePhotoBundle = (index, changes) => update({
+    photoBundleOptions: photoBundleOptions.map((option, optionIndex) => (
+      optionIndex === index ? { ...option, ...changes } : option
+    )),
+  });
 
   const selectedImageIndex = (color) => {
     const urlMatch = imageOptions.find((option) => option.url && option.url === color.image);
@@ -267,25 +279,84 @@ export default function ProductOptionsEditor({ value, onChange, imageSources = E
               onChange={(event) => update({
                 requiresCustomerImages: event.target.checked,
                 customerImageLimit: event.target.checked ? Number(value.customerImageLimit) || 1 : 1,
+                showPhotoBundleOptions: event.target.checked ? Boolean(value.showPhotoBundleOptions) : false,
+                photoBundleOptions: event.target.checked ? photoBundleOptions : [],
               })}
             />
             <span><strong>Require customer photo upload</strong><br /><small>Customers must attach their photos before adding this personalized product to the cart.</small></span>
           </label>
 
           {value.requiresCustomerImages && (
-            <label style={{ display: 'block', maxWidth: '260px', margin: '0.85rem 0 0 1.75rem' }}>
-              <span style={{ display: 'block', fontWeight: 600, marginBottom: '0.35rem' }}>Maximum customer photos</span>
-              <input
-                className="input"
-                type="number"
-                min="1"
-                max="30"
-                step="1"
-                value={value.customerImageLimit || 1}
-                onChange={(event) => update({ customerImageLimit: event.target.value })}
-              />
-              <small>Choose any limit from 1 to 30 photos.</small>
-            </label>
+            <div style={{ margin: '0.85rem 0 0 1.75rem' }}>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.65rem', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={Boolean(value.showPhotoBundleOptions)}
+                  onChange={(event) => update({
+                    showPhotoBundleOptions: event.target.checked,
+                    photoBundleOptions: event.target.checked
+                      ? (photoBundleOptions.length ? photoBundleOptions : [{ photoCount: 10, price: value.price || '' }])
+                      : [],
+                  })}
+                />
+                <span><strong>Offer photo bundle prices</strong><br /><small>Set a price and upload allowance for each Polaroid bundle.</small></span>
+              </label>
+
+              {value.showPhotoBundleOptions ? (
+                <div style={{ display: 'grid', gap: '0.75rem', marginTop: '0.85rem' }}>
+                  {photoBundleOptions.map((option, index) => (
+                    <div key={index} style={{ display: 'grid', gridTemplateColumns: 'minmax(130px, 1fr) minmax(150px, 1fr) auto', gap: '0.65rem', alignItems: 'end' }}>
+                      <label>
+                        <span style={{ display: 'block', fontWeight: 600, marginBottom: '0.35rem' }}>Number of photos</span>
+                        <input
+                          className="input"
+                          type="number"
+                          min="1"
+                          max="30"
+                          step="1"
+                          value={option.photoCount}
+                          onChange={(event) => updatePhotoBundle(index, { photoCount: event.target.value })}
+                        />
+                      </label>
+                      <label>
+                        <span style={{ display: 'block', fontWeight: 600, marginBottom: '0.35rem' }}>Bundle price (PKR)</span>
+                        <input
+                          className="input"
+                          type="number"
+                          min="1"
+                          step="1"
+                          value={option.price}
+                          onChange={(event) => updatePhotoBundle(index, { price: event.target.value })}
+                        />
+                      </label>
+                      <Button type="button" variant="secondary" onClick={() => update({ photoBundleOptions: photoBundleOptions.filter((_, optionIndex) => optionIndex !== index) })}>
+                        Remove
+                      </Button>
+                    </div>
+                  ))}
+                  <div>
+                    <Button type="button" variant="secondary" onClick={() => update({ photoBundleOptions: [...photoBundleOptions, { photoCount: '', price: '' }] })}>
+                      Add bundle
+                    </Button>
+                  </div>
+                  <small>Photo limits can be from 1 to 30. Customers needing more will be directed to WhatsApp.</small>
+                </div>
+              ) : (
+                <label style={{ display: 'block', maxWidth: '260px', marginTop: '0.85rem' }}>
+                  <span style={{ display: 'block', fontWeight: 600, marginBottom: '0.35rem' }}>Maximum customer photos</span>
+                  <input
+                    className="input"
+                    type="number"
+                    min="1"
+                    max="30"
+                    step="1"
+                    value={value.customerImageLimit || 1}
+                    onChange={(event) => update({ customerImageLimit: event.target.value })}
+                  />
+                  <small>Choose any limit from 1 to 30 photos.</small>
+                </label>
+              )}
+            </div>
           )}
         </div>
       )}

@@ -226,6 +226,8 @@ export default function Products() {
       colorOptions: normalizeColorOptionsForEdit(product.colorOptions, product.images || []),
       requiresCustomerImages: Boolean(product.requiresCustomerImages),
       customerImageLimit: Number(product.customerImageLimit) || 1,
+      showPhotoBundleOptions: Boolean(product.showPhotoBundleOptions),
+      photoBundleOptions: Array.isArray(product.photoBundleOptions) ? product.photoBundleOptions : [],
     });
     setNewImages([]);
     setCurrentImagesToRetain(product.images || []);
@@ -292,6 +294,26 @@ export default function Products() {
       }
     }
     if (productDataToSend.requiresCustomerImages) {
+      if (productDataToSend.showPhotoBundleOptions) {
+        const bundles = (productDataToSend.photoBundleOptions || []).map((option) => ({
+          photoCount: Number(option.photoCount),
+          price: Number(option.price),
+        }));
+        const counts = bundles.map((option) => option.photoCount);
+        const invalidBundle = !bundles.length || bundles.some((option) => (
+          !Number.isInteger(option.photoCount)
+          || option.photoCount < 1
+          || option.photoCount > 30
+          || !Number.isFinite(option.price)
+          || option.price <= 0
+        )) || new Set(counts).size !== counts.length;
+        if (invalidBundle) {
+          toast.error('Add valid, unique photo bundles between 1 and 30 photos with a price for each.');
+          return;
+        }
+        productDataToSend.photoBundleOptions = bundles.sort((a, b) => a.photoCount - b.photoCount);
+        productDataToSend.customerImageLimit = Math.max(...counts);
+      }
       const photoLimit = Number(productDataToSend.customerImageLimit);
       if (!Number.isInteger(photoLimit) || photoLimit < 1 || photoLimit > 30) {
         toast.error('Set the customer photo limit between 1 and 30.');

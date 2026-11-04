@@ -245,6 +245,9 @@ export default function Orders() {
                               </div>
                             </div>
                           )}
+                          {item.personalization?.photoBundle?.photoCount && (
+                            <p className="order-item-personalization">Photo bundle: {item.personalization.photoBundle.photoCount} photos</p>
+                          )}
                           {item.personalization?.messageMode && (
                             <div className="order-item-personalization">
                               <strong>Card message:</strong>{' '}

@@ -129,6 +129,8 @@ export default function PostProduct() {
                 colorOptions: [],
                 requiresCustomerImages: false,
                 customerImageLimit: 1,
+                showPhotoBundleOptions: false,
+                photoBundleOptions: [],
             }
         ]
     });
@@ -156,6 +158,8 @@ export default function PostProduct() {
                 ...(selectedCategory !== 'personalized' ? {
                     requiresCustomerImages: false,
                     customerImageLimit: 1,
+                    showPhotoBundleOptions: false,
+                    photoBundleOptions: [],
                 } : {}),
             }]
         }));
@@ -243,6 +247,27 @@ export default function PostProduct() {
             }
         }
         if (productToSubmit.requiresCustomerImages) {
+            if (productToSubmit.showPhotoBundleOptions) {
+                const bundles = (productToSubmit.photoBundleOptions || []).map((option) => ({
+                    photoCount: Number(option.photoCount),
+                    price: Number(option.price),
+                }));
+                const counts = bundles.map((option) => option.photoCount);
+                const invalidBundle = !bundles.length || bundles.some((option) => (
+                    !Number.isInteger(option.photoCount)
+                    || option.photoCount < 1
+                    || option.photoCount > 30
+                    || !Number.isFinite(option.price)
+                    || option.price <= 0
+                )) || new Set(counts).size !== counts.length;
+                if (invalidBundle) {
+                    toast.error('Add valid, unique photo bundles between 1 and 30 photos with a price for each.');
+                    setIsPosting(false);
+                    return;
+                }
+                productToSubmit.photoBundleOptions = bundles.sort((a, b) => a.photoCount - b.photoCount);
+                productToSubmit.customerImageLimit = Math.max(...counts);
+            }
             const photoLimit = Number(productToSubmit.customerImageLimit);
             if (!Number.isInteger(photoLimit) || photoLimit < 1 || photoLimit > 30) {
                 toast.error('Set the customer photo limit between 1 and 30.');
@@ -307,6 +332,8 @@ export default function PostProduct() {
                     colorOptions: [],
                     requiresCustomerImages: false,
                     customerImageLimit: 1,
+                    showPhotoBundleOptions: false,
+                    photoBundleOptions: [],
                 }]
             });
             setProductImages([]);
