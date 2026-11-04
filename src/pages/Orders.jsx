@@ -158,11 +158,29 @@ export default function Orders() {
 
                 <div className="detail-section">
                   <p className="detail-section-title">Payment</p>
-                  <p className="detail-row"><strong>Method:</strong> {order.paymentDetails?.method}</p>
+                  <p className="detail-row"><strong>Method:</strong> {order.paymentDetails?.method === 'bankTransfer' ? 'Online money transfer' : order.paymentDetails?.method}</p>
+                  {order.paymentDetails?.paymentProofUrl && (
+                    <div className="mini-card" style={{ marginTop: 'var(--space-2)' }}>
+                      <div className="mini-card-header">Payment Screenshot</div>
+                      <div className="mini-card-body">
+                        <a href={order.paymentDetails.paymentProofUrl} target="_blank" rel="noreferrer">
+                          <img
+                            src={order.paymentDetails.paymentProofUrl}
+                            alt={`Payment screenshot for order ${order._id}`}
+                            className="mini-card-img"
+                            style={{ objectFit: 'cover' }}
+                          />
+                        </a>
+                        <a href={order.paymentDetails.paymentProofUrl} target="_blank" rel="noreferrer">View full payment screenshot</a>
+                      </div>
+                    </div>
+                  )}
                   {order.paymentDetails?.method === 'creditCard' && (
                     <p className="detail-row"><strong>Card Name:</strong> {order.paymentDetails.cardName}</p>
                   )}
-                  <p className="detail-row"><strong>Save Card:</strong> {order.paymentDetails?.saveCardDetails ? 'Yes' : 'No'}</p>
+                  {order.paymentDetails?.method === 'creditCard' && (
+                    <p className="detail-row"><strong>Save Card:</strong> {order.paymentDetails?.saveCardDetails ? 'Yes' : 'No'}</p>
+                  )}
                 </div>
 
                 <div className="detail-section">
