@@ -30,7 +30,7 @@ const normalizeSize = (size, fallbackPrice) => {
   };
 };
 
-export default function ProductOptionsEditor({ value, onChange, imageSources = EMPTY_IMAGE_SOURCES }) {
+export default function ProductOptionsEditor({ value, onChange, imageSources = EMPTY_IMAGE_SOURCES, allowCustomerImages = false }) {
   const sizeOptions = (Array.isArray(value.sizeOptions) ? value.sizeOptions : [])
     .map((size) => normalizeSize(size, value.price))
     .filter((size) => size.name);
@@ -255,6 +255,38 @@ export default function ProductOptionsEditor({ value, onChange, imageSources = E
               Add color
             </Button>
           </div>
+        </div>
+      )}
+
+      {allowCustomerImages && (
+        <div style={{ borderTop: '1px solid var(--color-border)', marginTop: '1rem', paddingTop: '1rem' }}>
+          <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.65rem', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={Boolean(value.requiresCustomerImages)}
+              onChange={(event) => update({
+                requiresCustomerImages: event.target.checked,
+                customerImageLimit: event.target.checked ? Number(value.customerImageLimit) || 1 : 1,
+              })}
+            />
+            <span><strong>Require customer photo upload</strong><br /><small>Customers must attach their photos before adding this personalized product to the cart.</small></span>
+          </label>
+
+          {value.requiresCustomerImages && (
+            <label style={{ display: 'block', maxWidth: '260px', margin: '0.85rem 0 0 1.75rem' }}>
+              <span style={{ display: 'block', fontWeight: 600, marginBottom: '0.35rem' }}>Maximum customer photos</span>
+              <input
+                className="input"
+                type="number"
+                min="1"
+                max="30"
+                step="1"
+                value={value.customerImageLimit || 1}
+                onChange={(event) => update({ customerImageLimit: event.target.value })}
+              />
+              <small>Choose any limit from 1 to 30 photos.</small>
+            </label>
+          )}
         </div>
       )}
     </fieldset>

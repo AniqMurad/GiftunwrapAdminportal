@@ -233,6 +233,18 @@ export default function Orders() {
                               {[item.selectedSize && `Size: ${item.selectedSize}`, item.selectedColor && `Color: ${item.selectedColor}`].filter(Boolean).join(' · ')}
                             </p>
                           )}
+                          {item.personalization?.customerImages?.length > 0 && (
+                            <div className="order-item-personalization">
+                              <strong>Customer photos:</strong>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.5rem' }}>
+                                {item.personalization.customerImages.map((photo, photoIndex) => (
+                                  <a key={photo.publicId || photoIndex} href={photo.url} target="_blank" rel="noreferrer" title="Open full-size customer photo">
+                                    <img src={photo.url} alt={`Customer personalization ${photoIndex + 1}`} style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--color-border)' }} />
+                                  </a>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                           {item.personalization?.messageMode && (
                             <div className="order-item-personalization">
                               <strong>Card message:</strong>{' '}

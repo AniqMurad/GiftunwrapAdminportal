@@ -127,6 +127,8 @@ export default function PostProduct() {
                 sizeOptions: [],
                 showColorOptions: false,
                 colorOptions: [],
+                requiresCustomerImages: false,
+                customerImageLimit: 1,
             }
         ]
     });
@@ -150,6 +152,10 @@ export default function PostProduct() {
                     showWhatsInside: false,
                     showPackaging: false,
                     whatsInside: [],
+                } : {}),
+                ...(selectedCategory !== 'personalized' ? {
+                    requiresCustomerImages: false,
+                    customerImageLimit: 1,
                 } : {}),
             }]
         }));
@@ -236,6 +242,15 @@ export default function PostProduct() {
                 return;
             }
         }
+        if (productToSubmit.requiresCustomerImages) {
+            const photoLimit = Number(productToSubmit.customerImageLimit);
+            if (!Number.isInteger(photoLimit) || photoLimit < 1 || photoLimit > 30) {
+                toast.error('Set the customer photo limit between 1 and 30.');
+                setIsPosting(false);
+                return;
+            }
+            productToSubmit.customerImageLimit = photoLimit;
+        }
         if (form.category === 'greetingCards') {
             delete productToSubmit.shortDescription;
             delete productToSubmit.longDescription;
@@ -290,6 +305,8 @@ export default function PostProduct() {
                     sizeOptions: [],
                     showColorOptions: false,
                     colorOptions: [],
+                    requiresCustomerImages: false,
+                    customerImageLimit: 1,
                 }]
             });
             setProductImages([]);
@@ -381,6 +398,7 @@ export default function PostProduct() {
                     <ProductOptionsEditor
                         value={form.products[0]}
                         imageSources={productImages}
+                        allowCustomerImages={form.category === 'personalized'}
                         onChange={(productOptions) => setForm((previous) => ({
                             ...previous,
                             products: [{ ...previous.products[0], ...productOptions }],

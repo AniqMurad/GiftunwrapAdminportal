@@ -224,6 +224,8 @@ export default function Products() {
       sizeOptions: normalizeSizeOptionsForEdit(product.sizeOptions, product.price),
       showColorOptions: product.showColorOptions ?? Boolean(product.colorOptions?.length),
       colorOptions: normalizeColorOptionsForEdit(product.colorOptions, product.images || []),
+      requiresCustomerImages: Boolean(product.requiresCustomerImages),
+      customerImageLimit: Number(product.customerImageLimit) || 1,
     });
     setNewImages([]);
     setCurrentImagesToRetain(product.images || []);
@@ -288,6 +290,14 @@ export default function Products() {
         toast.error('Each color needs a name, a valid hex shade, and a linked product image.');
         return;
       }
+    }
+    if (productDataToSend.requiresCustomerImages) {
+      const photoLimit = Number(productDataToSend.customerImageLimit);
+      if (!Number.isInteger(photoLimit) || photoLimit < 1 || photoLimit > 30) {
+        toast.error('Set the customer photo limit between 1 and 30.');
+        return;
+      }
+      productDataToSend.customerImageLimit = photoLimit;
     }
 
     if (currentImagesToRetain.length + newImages.length === 0) {
@@ -424,6 +434,7 @@ export default function Products() {
         <ProductOptionsEditor
           value={editFormData}
           imageSources={productOptionImages}
+          allowCustomerImages={editingCategory === 'personalized'}
           onChange={setEditFormData}
         />
 
