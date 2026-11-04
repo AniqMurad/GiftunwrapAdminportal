@@ -67,7 +67,8 @@ const GiftBoxItems = () => {
     price: '',
     category: 'chocolates-snacks',
     profile: 'unisex',
-    imageFile: null,
+    imageFiles: [],
+    retainedImages: [],
     description: '',
     colorVariants: []
   });
@@ -127,9 +128,8 @@ const GiftBoxItems = () => {
     payload.append('profile', formData.profile);
     payload.append('description', formData.description || '');
 
-    if (formData.imageFile) {
-      payload.append('image', formData.imageFile);
-    }
+    formData.imageFiles.forEach(file => payload.append('images', file));
+    payload.append('retainedImages', JSON.stringify(formData.retainedImages));
 
     const colorVariantsMeta = formData.colorVariants.map(v => ({ color: v.color }));
     payload.append('colorVariants', JSON.stringify(colorVariantsMeta));
@@ -146,8 +146,8 @@ const GiftBoxItems = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!editingItem && !formData.imageFile) {
-      toast.error('Please select an image file.');
+    if (formData.imageFiles.length + formData.retainedImages.length === 0) {
+      toast.error('Please select at least one image file.');
       return;
     }
 
@@ -180,7 +180,8 @@ const GiftBoxItems = () => {
       price: item.price,
       category: item.category,
       profile: item.profile || 'unisex',
-      imageFile: null,
+      imageFiles: [],
+      retainedImages: item.images?.length ? item.images : (item.image ? [item.image] : []),
       description: item.description || '',
       colorVariants: (item.colorVariants || []).map(v => ({
         color: v.color,
@@ -232,7 +233,8 @@ const GiftBoxItems = () => {
       price: '',
       category: 'chocolates-snacks',
       profile: 'unisex',
-      imageFile: null,
+      imageFiles: [],
+      retainedImages: [],
       description: '',
       colorVariants: []
     });
@@ -278,12 +280,19 @@ const GiftBoxItems = () => {
             <Textarea label="Description" name="description" rows="3" value={formData.description} onChange={handleInputChange} />
 
             <ImageDropzone
-              label="Item Image"
+              label="Item Images"
               required={!editingItem}
-              files={formData.imageFile ? [formData.imageFile] : []}
-              onFilesChange={(files) => setFormData(prev => ({ ...prev, imageFile: files[0] || null }))}
-              existingImages={!formData.imageFile && editingItem?.image ? [editingItem.image] : []}
-              help={editingItem ? 'Upload a new image to replace the current one.' : undefined}
+              multiple
+              maxFiles={10}
+              files={formData.imageFiles}
+              onFilesChange={(files) => setFormData(prev => ({ ...prev, imageFiles: files }))}
+              existingImages={formData.retainedImages}
+              onRemoveExisting={(url) => setFormData(prev => ({
+                ...prev,
+                retainedImages: prev.retainedImages.filter(imageUrl => imageUrl !== url),
+              }))}
+              countExistingTowardLimit
+              help="The first image is used on the catalogue card. All images appear in the quick-view gallery. Up to 10 images total."
             />
 
             <Field label="Color Variants (optional)">
