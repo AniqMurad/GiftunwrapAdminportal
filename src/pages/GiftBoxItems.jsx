@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import {
   fetchGiftBoxItems,
+  fetchGiftBoxCategories,
+  createGiftBoxCategory,
   createGiftBoxItem,
   updateGiftBoxItem,
   deleteGiftBoxItem,
@@ -24,29 +26,20 @@ import {
   useConfirm,
 } from '../components/UI';
 
-const categories = [
-  'chocolates-snacks',
-  'flowers',
-  'customised-items',
-  'jewellery-accessories',
-  'fragrances',
-  'clothing',
-  'shoes',
-  'beauty-personal-care',
-  'gift-cards'
+const defaultCategories = [
+  { slug: 'chocolates-snacks', name: 'Chocolates & Snacks' },
+  { slug: 'customised-items', name: 'Customised Items' },
+  { slug: 'jewellery-accessories', name: 'Jewellery & Accessories' },
+  { slug: 'fragrances', name: 'Fragrances' },
+  { slug: 'clothing', name: 'Clothing' },
+  { slug: 'beauty-personal-care', name: 'Beauty & Personal Care' },
 ];
 
-const categoryLabels = {
-  'chocolates-snacks': 'Chocolates & Snacks',
-  'flowers': 'Flowers',
-  'customised-items': 'Customised Items',
-  'jewellery-accessories': 'Jewellery & Accessories',
-  'fragrances': 'Fragrances',
-  'clothing': 'Clothing',
-  'shoes': 'Shoes',
-  'beauty-personal-care': 'Beauty & Personal Care',
-  'gift-cards': 'Gift Cards'
-};
+const humanizeCategory = (value = '') => value
+  .split('-')
+  .filter(Boolean)
+  .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+  .join(' ');
 
 const profileLabels = {
   'for-him': 'For Him',
@@ -62,6 +55,9 @@ const GiftBoxItems = () => {
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [togglingId, setTogglingId] = useState(null);
+  const [categoryOptions, setCategoryOptions] = useState(defaultCategories);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [creatingCategory, setCreatingCategory] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     price: '',
@@ -77,6 +73,7 @@ const GiftBoxItems = () => {
 
   useEffect(() => {
     fetchItems();
+    loadCategories();
   }, []);
 
   const { page, setPage, totalPages, pageItems } = usePagination(items, 8);
@@ -92,6 +89,39 @@ const GiftBoxItems = () => {
       setLoading(false);
     }
   };
+
+  const loadCategories = async () => {
+    try {
+      const response = await fetchGiftBoxCategories();
+      if (Array.isArray(response.data) && response.data.length) {
+        setCategoryOptions(response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching gift box categories:', error);
+    }
+  };
+
+  const handleCreateCategory = async () => {
+    const name = newCategoryName.trim();
+    if (!name) return;
+    setCreatingCategory(true);
+    try {
+      const response = await createGiftBoxCategory({ name });
+      const created = response.data;
+      setCategoryOptions(prev => [...prev.filter(category => category.slug !== created.slug), created]
+        .sort((a, b) => a.name.localeCompare(b.name)));
+      setFormData(prev => ({ ...prev, category: created.slug }));
+      setNewCategoryName('');
+      toast.success('Category created successfully!');
+    } catch (error) {
+      console.error('Error creating category:', error);
+      toast.error(error.response?.data?.message || 'Failed to create category');
+    } finally {
+      setCreatingCategory(false);
+    }
+  };
+
+  const getCategoryLabel = (slug) => categoryOptions.find(category => category.slug === slug)?.name || humanizeCategory(slug);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -265,11 +295,38 @@ const GiftBoxItems = () => {
               <Input label="Price" type="number" required step="0.01" name="price" value={formData.price} onChange={handleInputChange} />
             </div>
             <div className="field-row">
-              <Select label="Category" required name="category" value={formData.category} onChange={handleInputChange}>
-                {categories.map(cat => (
-                  <option key={cat} value={cat}>{categoryLabels[cat]}</option>
-                ))}
-              </Select>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <Select label="Category" required name="category" value={formData.category} onChange={handleInputChange}>
+                  {categoryOptions.map(category => (
+                    <option key={category.slug} value={category.slug}>{category.name}</option>
+                  ))}
+                </Select>
+                <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-end', marginTop: 'var(--space-2)' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <Input
+                      label="Create a new category"
+                      placeholder="e.g. Books & Journals"
+                      value={newCategoryName}
+                      onChange={(event) => setNewCategoryName(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault();
+                          handleCreateCategory();
+                        }
+                      }}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={handleCreateCategory}
+                    loading={creatingCategory}
+                    disabled={!newCategoryName.trim()}
+                  >
+                    Add Category
+                  </Button>
+                </div>
+              </div>
               <Select label="Profile" required name="profile" value={formData.profile} onChange={handleInputChange}>
                 <option value="unisex">Unisex / Both</option>
                 <option value="for-him">For Him</option>
@@ -384,7 +441,7 @@ const GiftBoxItems = () => {
                         )}
                       </td>
                       <td data-label="Name">{item.name}</td>
-                      <td data-label="Category">{categoryLabels[item.category] || item.category}</td>
+                      <td data-label="Category">{getCategoryLabel(item.category)}</td>
                       <td data-label="Profile">{profileLabels[item.profile] || profileLabels.unisex}</td>
                       <td data-label="Price">PKR {item.price.toFixed(2)}</td>
                       <td data-label="Status">

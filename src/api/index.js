@@ -27,6 +27,8 @@ export const postProduct = (data) =>
 
 // ✅ Gift Box Item APIs
 export const fetchGiftBoxItems = () => API.get('/gift-box-items');
+export const fetchGiftBoxCategories = () => API.get('/gift-box-items/categories');
+export const createGiftBoxCategory = (data) => API.post('/gift-box-items/categories', data);
 export const createGiftBoxItem = (formData) =>
   API.post('/gift-box-items', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
