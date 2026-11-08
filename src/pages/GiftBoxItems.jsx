@@ -33,6 +33,9 @@ const defaultCategories = [
   { slug: 'fragrances', name: 'Fragrances' },
   { slug: 'clothing', name: 'Clothing' },
   { slug: 'beauty-personal-care', name: 'Beauty & Personal Care' },
+  { slug: 'personalized', name: 'Personalized' },
+  { slug: 'mugs', name: 'Mugs' },
+  { slug: 'notebooks', name: 'Notebook' },
 ];
 
 const humanizeCategory = (value = '') => value
@@ -40,6 +43,22 @@ const humanizeCategory = (value = '') => value
   .filter(Boolean)
   .map(word => word.charAt(0).toUpperCase() + word.slice(1))
   .join(' ');
+
+const retiredCategorySlugs = new Set(['flowers', 'shoes', 'gift-cards']);
+
+const mergeCategoryOptions = (categories = []) => {
+  const merged = new Map();
+  [...defaultCategories, ...(Array.isArray(categories) ? categories : [])].forEach((category) => {
+    const slug = String(category?.slug || '').trim().toLowerCase();
+    if (!slug || retiredCategorySlugs.has(slug)) return;
+    merged.set(slug, {
+      ...category,
+      slug,
+      name: category?.name || humanizeCategory(slug),
+    });
+  });
+  return [...merged.values()].sort((a, b) => a.name.localeCompare(b.name));
+};
 
 const profileLabels = {
   'for-him': 'For Him',
@@ -55,7 +74,7 @@ const GiftBoxItems = () => {
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [togglingId, setTogglingId] = useState(null);
-  const [categoryOptions, setCategoryOptions] = useState(defaultCategories);
+  const [categoryOptions, setCategoryOptions] = useState(() => mergeCategoryOptions());
   const [newCategoryName, setNewCategoryName] = useState('');
   const [creatingCategory, setCreatingCategory] = useState(false);
   const [formData, setFormData] = useState({
@@ -94,7 +113,7 @@ const GiftBoxItems = () => {
     try {
       const response = await fetchGiftBoxCategories();
       if (Array.isArray(response.data) && response.data.length) {
-        setCategoryOptions(response.data);
+        setCategoryOptions(mergeCategoryOptions(response.data));
       }
     } catch (error) {
       console.error('Error fetching gift box categories:', error);
@@ -108,8 +127,7 @@ const GiftBoxItems = () => {
     try {
       const response = await createGiftBoxCategory({ name });
       const created = response.data;
-      setCategoryOptions(prev => [...prev.filter(category => category.slug !== created.slug), created]
-        .sort((a, b) => a.name.localeCompare(b.name)));
+      setCategoryOptions(prev => mergeCategoryOptions([...prev, created]));
       setFormData(prev => ({ ...prev, category: created.slug }));
       setNewCategoryName('');
       toast.success('Category created successfully!');
