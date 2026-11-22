@@ -219,6 +219,7 @@ export default function Products() {
       metaDescription: product.metaDescription || '',
       showWhatsInside: product.showWhatsInside ?? whatsInside.length > 0,
       showPackaging: product.showPackaging ?? inferPackagingVisibility(product),
+      allowCakeMessage: Boolean(product.allowCakeMessage),
       whatsInside,
       showSizeOptions: product.showSizeOptions ?? Boolean(product.sizeOptions?.length),
       sizeOptions: normalizeSizeOptionsForEdit(product.sizeOptions, product.price),

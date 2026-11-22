@@ -239,7 +239,7 @@ export default function Orders() {
 
                   <div>
                     {order.orderItems?.map((item, index) => (
-                      <div key={item.productId || index} className="order-item-row">
+                      <div key={item._id || index} className="order-item-row">
                         {item.imageUrl && <img src={item.imageUrl} alt={item.name} className="order-item-thumb" />}
                         <div className="order-item-copy">
                           <p className="detail-row" style={{ margin: 0 }}>
@@ -251,6 +251,7 @@ export default function Orders() {
                               {[item.selectedSize && `Size: ${item.selectedSize}`, item.selectedColor && `Color: ${item.selectedColor}`].filter(Boolean).join(' · ')}
                             </p>
                           )}
+                          {item.personalization?.cakeMessage && <p className="order-item-personalization" style={{ overflowWrap: 'anywhere' }}>Cake message: {item.personalization.cakeMessage}</p>}
                           {item.personalization?.customerImages?.length > 0 && (
                             <div className="order-item-personalization">
                               <strong>Customer photos:</strong>

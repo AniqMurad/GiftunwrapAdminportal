@@ -99,6 +99,15 @@ export default function ProductOptionsEditor({ value, onChange, imageSources = E
       <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.65rem', marginBottom: '0.75rem', cursor: 'pointer' }}>
         <input
           type="checkbox"
+          checked={Boolean(value.allowCakeMessage)}
+          onChange={(event) => update({ allowCakeMessage: event.target.checked })}
+        />
+        <span><strong>Allow cake message</strong><br /><small>Let customers add optional writing on this cake (up to 50 characters).</small></span>
+      </label>
+
+      <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.65rem', marginBottom: '0.75rem', cursor: 'pointer' }}>
+        <input
+          type="checkbox"
           checked={Boolean(value.showSizeOptions)}
           onChange={(event) => update({
             showSizeOptions: event.target.checked,
