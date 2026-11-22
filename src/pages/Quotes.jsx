@@ -11,7 +11,7 @@ import {
   Modal,
   useToast,
   useConfirm,
-} from '../components/ui';
+} from '../components/UI';
 
 const quoteStatuses = ['pending', 'contacted', 'quoted', 'closed'];
 

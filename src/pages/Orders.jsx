@@ -11,7 +11,7 @@ import {
   Badge,
   useToast,
   useConfirm,
-} from '../components/ui';
+} from '../components/UI';
 
 const orderStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled', 'returned'];
 
@@ -158,11 +158,29 @@ export default function Orders() {
 
                 <div className="detail-section">
                   <p className="detail-section-title">Payment</p>
-                  <p className="detail-row"><strong>Method:</strong> {order.paymentDetails?.method}</p>
+                  <p className="detail-row"><strong>Method:</strong> {order.paymentDetails?.method === 'bankTransfer' ? 'Online money transfer' : order.paymentDetails?.method}</p>
+                  {order.paymentDetails?.paymentProofUrl && (
+                    <div className="mini-card" style={{ marginTop: 'var(--space-2)' }}>
+                      <div className="mini-card-header">Payment Screenshot</div>
+                      <div className="mini-card-body">
+                        <a href={order.paymentDetails.paymentProofUrl} target="_blank" rel="noreferrer">
+                          <img
+                            src={order.paymentDetails.paymentProofUrl}
+                            alt={`Payment screenshot for order ${order._id}`}
+                            className="mini-card-img"
+                            style={{ objectFit: 'cover' }}
+                          />
+                        </a>
+                        <a href={order.paymentDetails.paymentProofUrl} target="_blank" rel="noreferrer">View full payment screenshot</a>
+                      </div>
+                    </div>
+                  )}
                   {order.paymentDetails?.method === 'creditCard' && (
                     <p className="detail-row"><strong>Card Name:</strong> {order.paymentDetails.cardName}</p>
                   )}
-                  <p className="detail-row"><strong>Save Card:</strong> {order.paymentDetails?.saveCardDetails ? 'Yes' : 'No'}</p>
+                  {order.paymentDetails?.method === 'creditCard' && (
+                    <p className="detail-row"><strong>Save Card:</strong> {order.paymentDetails?.saveCardDetails ? 'Yes' : 'No'}</p>
+                  )}
                 </div>
 
                 <div className="detail-section">
@@ -223,10 +241,45 @@ export default function Orders() {
                     {order.orderItems?.map((item, index) => (
                       <div key={item.productId || index} className="order-item-row">
                         {item.imageUrl && <img src={item.imageUrl} alt={item.name} className="order-item-thumb" />}
-                        <span className="detail-row" style={{ margin: 0 }}>
-                          <strong>{item.name}</strong> x {item.quantity} — ${item.priceAtTimeOfOrder}{' '}
-                          <span style={{ color: 'var(--color-text-subtle)' }}>({item.productCategory})</span>
-                        </span>
+                        <div className="order-item-copy">
+                          <p className="detail-row" style={{ margin: 0 }}>
+                            <strong>{item.name}</strong> x {item.quantity} — ${item.priceAtTimeOfOrder}{' '}
+                            <span style={{ color: 'var(--color-text-subtle)' }}>({item.productCategory})</span>
+                          </p>
+                          {(item.selectedSize || item.selectedColor) && (
+                            <p className="detail-row" style={{ margin: '0.25rem 0 0' }}>
+                              {[item.selectedSize && `Size: ${item.selectedSize}`, item.selectedColor && `Color: ${item.selectedColor}`].filter(Boolean).join(' · ')}
+                            </p>
+                          )}
+                          {item.personalization?.customerImages?.length > 0 && (
+                            <div className="order-item-personalization">
+                              <strong>Customer photos:</strong>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.5rem' }}>
+                                {item.personalization.customerImages.map((photo, photoIndex) => (
+                                  <a key={photo.publicId || photoIndex} href={photo.url} target="_blank" rel="noreferrer" title="Open full-size customer photo">
+                                    <img src={photo.url} alt={`Customer personalization ${photoIndex + 1}`} style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--color-border)' }} />
+                                  </a>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {item.personalization?.photoBundle?.photoCount && (
+                            <p className="order-item-personalization">Photo bundle: {item.personalization.photoBundle.photoCount} photos</p>
+                          )}
+                          {item.personalization?.messageMode && (
+                            <div className="order-item-personalization">
+                              <strong>Card message:</strong>{' '}
+                              {item.personalization.messageMode === 'blank' ? (
+                                <span>Leave blank</span>
+                              ) : (
+                                <>
+                                  <span>To {item.personalization.to}, from {item.personalization.from}</span>
+                                  <p>&ldquo;{item.personalization.message}&rdquo;</p>
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>

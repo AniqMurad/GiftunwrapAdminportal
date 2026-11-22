@@ -5,7 +5,7 @@ import {
   fetchProducts,
   fetchMessages
 } from '../api';
-import { PageHeader, Card, Badge, EmptyState, Skeleton, CardListSkeleton, useToast } from '../components/ui';
+import { PageHeader, Card, Badge, EmptyState, Skeleton, CardListSkeleton, useToast } from '../components/UI';
 import './Dashboard.css';
 
 const ORDER_STATUS_VARIANT = {

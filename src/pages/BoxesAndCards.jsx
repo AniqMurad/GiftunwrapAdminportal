@@ -25,7 +25,49 @@ import {
   usePagination,
   useToast,
   useConfirm,
-} from '../components/ui';
+} from '../components/UI';
+
+const MAX_BOX_IMAGES = 10;
+const BOX_SIZE_OPTIONS = ['small', 'medium', 'large'];
+
+const emptySizeVariants = () => BOX_SIZE_OPTIONS.reduce((variants, size) => ({
+  ...variants,
+  [size]: { price: '', capacity: '' },
+}), {});
+
+const getBoxSizeVariants = (box) => {
+  const variants = emptySizeVariants();
+
+  if (Array.isArray(box?.sizeVariants) && box.sizeVariants.length > 0) {
+    box.sizeVariants.forEach((variant) => {
+      const size = String(variant.size || '').toLowerCase();
+      if (variants[size]) {
+        variants[size] = {
+          price: variant.price ?? '',
+          capacity: variant.capacity ?? '',
+        };
+      }
+    });
+    return variants;
+  }
+
+  const legacySize = BOX_SIZE_OPTIONS.find(size => String(box?.size || '').toLowerCase().includes(size)) || 'small';
+  variants[legacySize] = { price: box?.price ?? '', capacity: box?.capacity ?? '' };
+  return variants;
+};
+
+const configuredBoxVariants = (box) => {
+  if (Array.isArray(box?.sizeVariants) && box.sizeVariants.length > 0) return box.sizeVariants;
+  return box ? [{ size: box.size || 'small', price: box.price, capacity: box.capacity }] : [];
+};
+
+const getBoxImages = (box) => {
+  if (Array.isArray(box?.images) && box.images.length > 0) {
+    return box.images.filter(Boolean);
+  }
+
+  return box?.image ? [box.image] : [];
+};
 
 const BoxesAndCards = () => {
   const [boxes, setBoxes] = useState([]);
@@ -42,10 +84,9 @@ const BoxesAndCards = () => {
 
   const [boxFormData, setBoxFormData] = useState({
     name: '',
-    size: '',
-    price: '',
-    capacity: '',
-    imageFile: null,
+    sizeVariants: emptySizeVariants(),
+    imageFiles: [],
+    existingImages: [],
     color: '#F5DEB3',
     description: ''
   });
@@ -89,6 +130,16 @@ const BoxesAndCards = () => {
     setBoxFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleBoxVariantChange = (size, field, value) => {
+    setBoxFormData(prev => ({
+      ...prev,
+      sizeVariants: {
+        ...prev.sizeVariants,
+        [size]: { ...prev.sizeVariants[size], [field]: value },
+      },
+    }));
+  };
+
   const handleCardInputChange = (e) => {
     const { name, value } = e.target;
     setCardFormData(prev => ({ ...prev, [name]: value }));
@@ -97,15 +148,20 @@ const BoxesAndCards = () => {
   const buildBoxFormDataPayload = () => {
     const payload = new FormData();
     payload.append('name', boxFormData.name);
-    payload.append('size', boxFormData.size);
-    payload.append('price', boxFormData.price);
-    payload.append('capacity', boxFormData.capacity);
+    const sizeVariants = BOX_SIZE_OPTIONS.map(size => ({
+      size,
+      price: Number(boxFormData.sizeVariants[size].price),
+      capacity: Number(boxFormData.sizeVariants[size].capacity),
+    }));
+    payload.append('sizeVariants', JSON.stringify(sizeVariants));
+    payload.append('size', 'Small');
+    payload.append('price', String(sizeVariants[0].price));
+    payload.append('capacity', String(sizeVariants[0].capacity));
     payload.append('color', boxFormData.color || '');
     payload.append('description', boxFormData.description || '');
 
-    if (boxFormData.imageFile) {
-      payload.append('image', boxFormData.imageFile);
-    }
+    payload.append('retainedImages', JSON.stringify(boxFormData.existingImages));
+    boxFormData.imageFiles.forEach((file) => payload.append('images', file));
 
     return payload;
   };
@@ -127,8 +183,22 @@ const BoxesAndCards = () => {
   const handleBoxSubmit = async (e) => {
     e.preventDefault();
 
-    if (!editingItem && !boxFormData.imageFile) {
-      toast.error('Please select an image file.');
+    if (boxFormData.existingImages.length + boxFormData.imageFiles.length === 0) {
+      toast.error('Please select at least one image file.');
+      return;
+    }
+
+    if (boxFormData.existingImages.length + boxFormData.imageFiles.length > MAX_BOX_IMAGES) {
+      toast.error(`You can upload up to ${MAX_BOX_IMAGES} images per box.`);
+      return;
+    }
+
+    const invalidVariant = BOX_SIZE_OPTIONS.some((size) => {
+      const variant = boxFormData.sizeVariants[size];
+      return variant.price === '' || Number(variant.price) < 0 || !Number.isInteger(Number(variant.capacity)) || Number(variant.capacity) < 1;
+    });
+    if (invalidVariant) {
+      toast.error('Enter a valid price and capacity for Small, Medium, and Large.');
       return;
     }
 
@@ -186,10 +256,9 @@ const BoxesAndCards = () => {
     setEditingItem(box);
     setBoxFormData({
       name: box.name,
-      size: box.size,
-      price: box.price,
-      capacity: box.capacity,
-      imageFile: null,
+      sizeVariants: getBoxSizeVariants(box),
+      imageFiles: [],
+      existingImages: getBoxImages(box),
       color: box.color || '#F5DEB3',
       description: box.description || ''
     });
@@ -271,7 +340,7 @@ const BoxesAndCards = () => {
   };
 
   const resetForm = () => {
-    setBoxFormData({ name: '', size: '', price: '', capacity: '', imageFile: null, color: '#F5DEB3', description: '' });
+    setBoxFormData({ name: '', sizeVariants: emptySizeVariants(), imageFiles: [], existingImages: [], color: '#F5DEB3', description: '' });
     setCardFormData({ name: '', design: '', imageFile: null, color: '#F5F5F5', description: '' });
     setEditingItem(null);
     setShowForm(false);
@@ -306,24 +375,58 @@ const BoxesAndCards = () => {
           <form onSubmit={handleBoxSubmit}>
             <div className="field-row">
               <Input label="Name" required name="name" value={boxFormData.name} onChange={handleBoxInputChange} />
-              <Input label="Size" required placeholder="e.g., 15cm x 15cm x 10cm" name="size" value={boxFormData.size} onChange={handleBoxInputChange} />
-            </div>
-            <div className="field-row">
-              <Input label="Price" type="number" required step="0.01" name="price" value={boxFormData.price} onChange={handleBoxInputChange} />
-              <Input label="Capacity" required placeholder="e.g., 3-5 items" name="capacity" value={boxFormData.capacity} onChange={handleBoxInputChange} />
-            </div>
-            <div className="field-row">
-              <ImageDropzone
-                label="Image"
-                required={!editingItem}
-                files={boxFormData.imageFile ? [boxFormData.imageFile] : []}
-                onFilesChange={(files) => setBoxFormData(prev => ({ ...prev, imageFile: files[0] || null }))}
-                existingImages={!boxFormData.imageFile && editingItem?.image ? [editingItem.image] : []}
-              />
               <div className="field">
                 <span className="field-label">Color</span>
                 <input type="color" name="color" className="input input-color" value={boxFormData.color} onChange={handleBoxInputChange} />
               </div>
+            </div>
+            <fieldset className="box-size-variants">
+              <legend>Size options</legend>
+              <p>Set a separate price and item capacity for each size.</p>
+              <div className="box-size-variant-grid">
+                {BOX_SIZE_OPTIONS.map(size => (
+                  <div className="box-size-variant" key={size}>
+                    <h3>{size}</h3>
+                    <Input
+                      label="Price"
+                      type="number"
+                      required
+                      min="0"
+                      step="0.01"
+                      value={boxFormData.sizeVariants[size].price}
+                      onChange={(event) => handleBoxVariantChange(size, 'price', event.target.value)}
+                    />
+                    <Input
+                      label="Capacity"
+                      type="number"
+                      required
+                      min="1"
+                      step="1"
+                      value={boxFormData.sizeVariants[size].capacity}
+                      onChange={(event) => handleBoxVariantChange(size, 'capacity', event.target.value)}
+                    />
+                  </div>
+                ))}
+              </div>
+            </fieldset>
+            <div className="field-row box-media-row">
+              <ImageDropzone
+                label="Images"
+                required={!editingItem}
+                multiple
+                maxFiles={Math.max(0, MAX_BOX_IMAGES - boxFormData.existingImages.length)}
+                files={boxFormData.imageFiles}
+                onFilesChange={(files) => setBoxFormData(prev => ({ ...prev, imageFiles: files }))}
+                existingImages={boxFormData.existingImages}
+                onRemoveExisting={(_, index) => setBoxFormData(prev => ({
+                  ...prev,
+                  existingImages: prev.existingImages.filter((__, imageIndex) => imageIndex !== index),
+                }))}
+                disabled={boxFormData.existingImages.length >= MAX_BOX_IMAGES}
+                help={boxFormData.existingImages.length >= MAX_BOX_IMAGES
+                  ? 'Remove an existing image before adding another.'
+                  : `Upload up to ${MAX_BOX_IMAGES} images per gift box.`}
+              />
             </div>
             <Textarea label="Description" name="description" rows="3" value={boxFormData.description} onChange={handleBoxInputChange} />
             <div className="form-actions">
@@ -400,13 +503,13 @@ const BoxesAndCards = () => {
                       <tr key={box.id}>
                         <td data-label="Image">
                           <div style={{ width: 48, height: 48, borderRadius: 'var(--radius-sm)', background: box.color, overflow: 'hidden' }}>
-                            <img src={box.image} alt={box.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <img src={getBoxImages(box)[0]} alt={box.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                           </div>
                         </td>
                         <td data-label="Name">{box.name}</td>
-                        <td data-label="Size">{box.size}</td>
-                        <td data-label="Capacity">{box.capacity}</td>
-                        <td data-label="Price">${box.price.toFixed(2)}</td>
+                        <td data-label="Size">{configuredBoxVariants(box).map(variant => String(variant.size).replace(/^./, char => char.toUpperCase())).join(', ')}</td>
+                        <td data-label="Capacity">{configuredBoxVariants(box).map(variant => `${String(variant.size).slice(0, 1).toUpperCase()}: ${variant.capacity}`).join(' · ')}</td>
+                        <td data-label="Price">From ${Math.min(...configuredBoxVariants(box).map(variant => Number(variant.price) || 0)).toFixed(2)}</td>
                         <td data-label="Status">
                           <Badge variant={box.inStock ? 'success' : 'danger'}>{box.inStock ? 'In Stock' : 'Out of Stock'}</Badge>
                         </td>

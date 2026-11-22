@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import {
   fetchGiftBoxItems,
+  fetchGiftBoxCategories,
+  createGiftBoxCategory,
   createGiftBoxItem,
   updateGiftBoxItem,
   deleteGiftBoxItem,
@@ -22,28 +24,46 @@ import {
   usePagination,
   useToast,
   useConfirm,
-} from '../components/ui';
+} from '../components/UI';
 
-const categories = [
-  'chocolates-snacks',
-  'flowers',
-  'customised-items',
-  'jewellery-accessories',
-  'fragrances',
-  'clothing',
-  'shoes',
-  'beauty-personal-care'
+const defaultCategories = [
+  { slug: 'chocolates-snacks', name: 'Chocolates & Snacks' },
+  { slug: 'customised-items', name: 'Customised Items' },
+  { slug: 'jewellery-accessories', name: 'Jewellery & Accessories' },
+  { slug: 'fragrances', name: 'Fragrances' },
+  { slug: 'clothing', name: 'Clothing' },
+  { slug: 'beauty-personal-care', name: 'Beauty & Personal Care' },
+  { slug: 'personalized', name: 'Personalized' },
+  { slug: 'mugs', name: 'Mugs' },
+  { slug: 'notebooks', name: 'Notebook' },
 ];
 
-const categoryLabels = {
-  'chocolates-snacks': 'Chocolates & Snacks',
-  'flowers': 'Flowers',
-  'customised-items': 'Customised Items',
-  'jewellery-accessories': 'Jewellery & Accessories',
-  'fragrances': 'Fragrances',
-  'clothing': 'Clothing',
-  'shoes': 'Shoes',
-  'beauty-personal-care': 'Beauty & Personal Care'
+const humanizeCategory = (value = '') => value
+  .split('-')
+  .filter(Boolean)
+  .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+  .join(' ');
+
+const retiredCategorySlugs = new Set(['flowers', 'shoes', 'gift-cards']);
+
+const mergeCategoryOptions = (categories = []) => {
+  const merged = new Map();
+  [...defaultCategories, ...(Array.isArray(categories) ? categories : [])].forEach((category) => {
+    const slug = String(category?.slug || '').trim().toLowerCase();
+    if (!slug || retiredCategorySlugs.has(slug)) return;
+    merged.set(slug, {
+      ...category,
+      slug,
+      name: category?.name || humanizeCategory(slug),
+    });
+  });
+  return [...merged.values()].sort((a, b) => a.name.localeCompare(b.name));
+};
+
+const profileLabels = {
+  'for-him': 'For Him',
+  'for-her': 'For Her',
+  'unisex': 'Unisex / Both'
 };
 
 const GiftBoxItems = () => {
@@ -54,11 +74,16 @@ const GiftBoxItems = () => {
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [togglingId, setTogglingId] = useState(null);
+  const [categoryOptions, setCategoryOptions] = useState(() => mergeCategoryOptions());
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [creatingCategory, setCreatingCategory] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     price: '',
     category: 'chocolates-snacks',
-    imageFile: null,
+    profile: 'unisex',
+    imageFiles: [],
+    retainedImages: [],
     description: '',
     colorVariants: []
   });
@@ -67,6 +92,7 @@ const GiftBoxItems = () => {
 
   useEffect(() => {
     fetchItems();
+    loadCategories();
   }, []);
 
   const { page, setPage, totalPages, pageItems } = usePagination(items, 8);
@@ -82,6 +108,38 @@ const GiftBoxItems = () => {
       setLoading(false);
     }
   };
+
+  const loadCategories = async () => {
+    try {
+      const response = await fetchGiftBoxCategories();
+      if (Array.isArray(response.data) && response.data.length) {
+        setCategoryOptions(mergeCategoryOptions(response.data));
+      }
+    } catch (error) {
+      console.error('Error fetching gift box categories:', error);
+    }
+  };
+
+  const handleCreateCategory = async () => {
+    const name = newCategoryName.trim();
+    if (!name) return;
+    setCreatingCategory(true);
+    try {
+      const response = await createGiftBoxCategory({ name });
+      const created = response.data;
+      setCategoryOptions(prev => mergeCategoryOptions([...prev, created]));
+      setFormData(prev => ({ ...prev, category: created.slug }));
+      setNewCategoryName('');
+      toast.success('Category created successfully!');
+    } catch (error) {
+      console.error('Error creating category:', error);
+      toast.error(error.response?.data?.message || 'Failed to create category');
+    } finally {
+      setCreatingCategory(false);
+    }
+  };
+
+  const getCategoryLabel = (slug) => categoryOptions.find(category => category.slug === slug)?.name || humanizeCategory(slug);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -115,11 +173,11 @@ const GiftBoxItems = () => {
     payload.append('name', formData.name);
     payload.append('price', formData.price);
     payload.append('category', formData.category);
+    payload.append('profile', formData.profile);
     payload.append('description', formData.description || '');
 
-    if (formData.imageFile) {
-      payload.append('image', formData.imageFile);
-    }
+    formData.imageFiles.forEach(file => payload.append('images', file));
+    payload.append('retainedImages', JSON.stringify(formData.retainedImages));
 
     const colorVariantsMeta = formData.colorVariants.map(v => ({ color: v.color }));
     payload.append('colorVariants', JSON.stringify(colorVariantsMeta));
@@ -136,8 +194,8 @@ const GiftBoxItems = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!editingItem && !formData.imageFile) {
-      toast.error('Please select an image file.');
+    if (formData.imageFiles.length + formData.retainedImages.length === 0) {
+      toast.error('Please select at least one image file.');
       return;
     }
 
@@ -169,7 +227,9 @@ const GiftBoxItems = () => {
       name: item.name,
       price: item.price,
       category: item.category,
-      imageFile: null,
+      profile: item.profile || 'unisex',
+      imageFiles: [],
+      retainedImages: item.images?.length ? item.images : (item.image ? [item.image] : []),
       description: item.description || '',
       colorVariants: (item.colorVariants || []).map(v => ({
         color: v.color,
@@ -220,7 +280,9 @@ const GiftBoxItems = () => {
       name: '',
       price: '',
       category: 'chocolates-snacks',
-      imageFile: null,
+      profile: 'unisex',
+      imageFiles: [],
+      retainedImages: [],
       description: '',
       colorVariants: []
     });
@@ -232,7 +294,7 @@ const GiftBoxItems = () => {
     <div className="page-shell">
       <PageHeader
         title="Gift Box Items"
-        description="Items customers can choose from when building a gift box."
+        description="Reusable catalogue items for Build a Gift Box and product What’s Inside sections."
         actions={
           <Button variant={showForm ? 'secondary' : 'primary'} onClick={() => (showForm ? resetForm() : setShowForm(true))}>
             {showForm ? 'Cancel' : 'Add New Item'}
@@ -251,21 +313,61 @@ const GiftBoxItems = () => {
               <Input label="Price" type="number" required step="0.01" name="price" value={formData.price} onChange={handleInputChange} />
             </div>
             <div className="field-row">
-              <Select label="Category" required name="category" value={formData.category} onChange={handleInputChange}>
-                {categories.map(cat => (
-                  <option key={cat} value={cat}>{categoryLabels[cat]}</option>
-                ))}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <Select label="Category" required name="category" value={formData.category} onChange={handleInputChange}>
+                  {categoryOptions.map(category => (
+                    <option key={category.slug} value={category.slug}>{category.name}</option>
+                  ))}
+                </Select>
+                <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-end', marginTop: 'var(--space-2)' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <Input
+                      label="Create a new category"
+                      placeholder="e.g. Books & Journals"
+                      value={newCategoryName}
+                      onChange={(event) => setNewCategoryName(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault();
+                          handleCreateCategory();
+                        }
+                      }}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={handleCreateCategory}
+                    loading={creatingCategory}
+                    disabled={!newCategoryName.trim()}
+                  >
+                    Add Category
+                  </Button>
+                </div>
+              </div>
+              <Select label="Profile" required name="profile" value={formData.profile} onChange={handleInputChange}>
+                <option value="unisex">Unisex / Both</option>
+                <option value="for-him">For Him</option>
+                <option value="for-her">For Her</option>
               </Select>
-              <Textarea label="Description" name="description" rows="3" value={formData.description} onChange={handleInputChange} />
             </div>
 
+            <Textarea label="Description" name="description" rows="3" value={formData.description} onChange={handleInputChange} />
+
             <ImageDropzone
-              label="Item Image"
+              label="Item Images"
               required={!editingItem}
-              files={formData.imageFile ? [formData.imageFile] : []}
-              onFilesChange={(files) => setFormData(prev => ({ ...prev, imageFile: files[0] || null }))}
-              existingImages={!formData.imageFile && editingItem?.image ? [editingItem.image] : []}
-              help={editingItem ? 'Upload a new image to replace the current one.' : undefined}
+              multiple
+              maxFiles={10}
+              files={formData.imageFiles}
+              onFilesChange={(files) => setFormData(prev => ({ ...prev, imageFiles: files }))}
+              existingImages={formData.retainedImages}
+              onRemoveExisting={(url) => setFormData(prev => ({
+                ...prev,
+                retainedImages: prev.retainedImages.filter(imageUrl => imageUrl !== url),
+              }))}
+              countExistingTowardLimit
+              help="The first image is used on the catalogue card. All images appear in the quick-view gallery. Up to 10 images total."
             />
 
             <Field label="Color Variants (optional)">
@@ -320,7 +422,7 @@ const GiftBoxItems = () => {
           <div className="dt-scroll">
             <table className="dt-table">
               <tbody>
-                <TableSkeleton rows={6} columns={6} />
+                <TableSkeleton rows={6} columns={7} />
               </tbody>
             </table>
           </div>
@@ -337,6 +439,7 @@ const GiftBoxItems = () => {
                     <th>Image</th>
                     <th>Name</th>
                     <th>Category</th>
+                    <th>Profile</th>
                     <th>Price</th>
                     <th>Status</th>
                     <th className="col-actions">Actions</th>
@@ -356,7 +459,8 @@ const GiftBoxItems = () => {
                         )}
                       </td>
                       <td data-label="Name">{item.name}</td>
-                      <td data-label="Category">{categoryLabels[item.category] || item.category}</td>
+                      <td data-label="Category">{getCategoryLabel(item.category)}</td>
+                      <td data-label="Profile">{profileLabels[item.profile] || profileLabels.unisex}</td>
                       <td data-label="Price">PKR {item.price.toFixed(2)}</td>
                       <td data-label="Status">
                         <Badge variant={item.inStock ? 'success' : 'danger'}>{item.inStock ? 'In Stock' : 'Out of Stock'}</Badge>

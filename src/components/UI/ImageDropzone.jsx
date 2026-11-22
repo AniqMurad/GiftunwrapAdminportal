@@ -19,6 +19,7 @@ export default function ImageDropzone({
   onFilesChange,
   existingImages = [],
   onRemoveExisting,
+  countExistingTowardLimit = false,
   disabled = false,
   compact = false,
 }) {
@@ -55,10 +56,12 @@ export default function ImageDropzone({
       accepted.push(file);
     });
 
+    const existingImageCount = countExistingTowardLimit ? existingImages.length : 0;
+    const availableFileSlots = Math.max(0, maxFiles - existingImageCount);
     let nextFiles = multiple ? [...files, ...accepted] : accepted.slice(0, 1);
-    if (nextFiles.length > maxFiles) {
+    if (nextFiles.length > availableFileSlots) {
       rejection = `You can only upload up to ${maxFiles} image${maxFiles > 1 ? 's' : ''}.`;
-      nextFiles = nextFiles.slice(0, maxFiles);
+      nextFiles = nextFiles.slice(0, availableFileSlots);
     }
 
     setLocalError(rejection);

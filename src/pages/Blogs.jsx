@@ -15,7 +15,7 @@ import {
   Badge,
   useToast,
   useConfirm,
-} from '../components/ui';
+} from '../components/UI';
 
 const Blogs = () => {
   const navigate = useNavigate();

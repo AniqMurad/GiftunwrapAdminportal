@@ -1,6 +1,6 @@
 import { useLocation } from 'react-router-dom';
 import { menuItems } from './Sidebar';
-import Button from './ui/Button';
+import Button from './UI/Button';
 
 function getPageTitle(pathname) {
   if (pathname.startsWith('/post-blog/')) return 'Edit Blog';

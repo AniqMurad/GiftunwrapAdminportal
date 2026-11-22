@@ -14,7 +14,7 @@ import {
   ImageDropzone,
   Button,
   useToast,
-} from '../components/ui';
+} from '../components/UI';
 
 const emptyFormData = {
   title: '',

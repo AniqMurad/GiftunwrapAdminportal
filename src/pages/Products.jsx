@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
   PageHeader,
@@ -15,19 +15,25 @@ import {
   ImageDropzone,
   useToast,
   useConfirm,
-} from '../components/ui';
+} from '../components/UI';
+import WhatsInsideEditor from '../components/WhatsInsideEditor';
+import ProductOptionsEditor from '../components/ProductOptionsEditor';
+import { cleanWhatsInsideItems, hasCompleteWhatsInsideItems } from '../utils/whatsInside';
+import { prepareImagesForUpload } from '../utils/imageCompression';
 
 // API functions
 const fetchProducts = () => axios.get('https://giftunwrapbackend.vercel.app/api/products');
 const deleteProductById = (productId) => axios.delete(`https://giftunwrapbackend.vercel.app/api/products/${productId}`);
-const updateProductById = (productId, productData, images) => {
+const updateProductById = (productId, productData, images, whatsInsideImages) => {
   const formData = new FormData();
   formData.append('products', JSON.stringify([productData])); // products field should be an array stringified
 
   images.forEach((image) => {
     formData.append('images', image);
   });
-
+  whatsInsideImages.forEach(({ index, file }) => {
+    formData.append(`whatsInsideImage_${index}`, file);
+  });
   return axios.put(`https://giftunwrapbackend.vercel.app/api/products/${productId}`, formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
@@ -35,11 +41,102 @@ const updateProductById = (productId, productData, images) => {
   });
 };
 
+const categoryLabels = {
+  giftsForHim: 'Gifts for Him',
+  giftsForHer: 'Gifts for Her',
+  birthday: 'Birthday Gifts',
+  personalized: 'Personalized Gifts',
+  floralArrangements: 'Floral Arrangements',
+  sweetTreats: 'Sweet Treats',
+  greetingCards: 'Greeting Cards',
+  giftsForCompany: 'Corporate Gifts',
+};
+
+const categoryOrder = Object.keys(categoryLabels);
+const obsoleteCategories = new Set(['giftsForReligions', 'FlowersChocolates']);
+const sweetProductTerms = /\b(cake|cakes|chocolate|chocolates|brownie|brownies|cookie|cookies|dessert|desserts|candy|candies|truffle|truffles|confection|confections)\b|\bsweet treats?\b/i;
+const floralProductTerms = /\b(flower|flowers|floral|bouquet|bouquets|bloom|blooms|rose|roses|sunflower|sunflowers)\b/i;
+
+const productSearchText = (product) => [
+  product.name,
+  ...(Array.isArray(product.keyGift) ? product.keyGift : [product.keyGift]),
+  product.subcategory,
+  product.shortDescription,
+  product.longDescription,
+  product.metaTitle,
+  product.metaDescription,
+].filter(Boolean).join(' ');
+
+const mergeProducts = (...productLists) => {
+  const merged = new Map();
+  productLists.flat().forEach((product) => {
+    const key = product.id != null ? `id:${product.id}` : `_id:${product._id}`;
+    if (!merged.has(key)) merged.set(key, product);
+  });
+  return [...merged.values()];
+};
+
+const normalizeCategories = (categories) => {
+  const sourceCategories = Array.isArray(categories) ? categories : [];
+  const religious = sourceCategories.find((entry) => entry.category === 'giftsForReligions');
+  const mixed = sourceCategories.find((entry) => entry.category === 'FlowersChocolates');
+  const current = sourceCategories.filter((entry) => !obsoleteCategories.has(entry.category));
+
+  if (religious || mixed) {
+    const floral = current.find((entry) => entry.category === 'floralArrangements');
+    const sweet = current.find((entry) => entry.category === 'sweetTreats');
+    const mixedProducts = mixed?.products || [];
+    const floralFromMixed = mixedProducts.filter((product) => {
+      const text = productSearchText(product);
+      return floralProductTerms.test(text) || !sweetProductTerms.test(text);
+    });
+    const sweetFromMixed = mixedProducts.filter((product) => sweetProductTerms.test(productSearchText(product)));
+    const remaining = current.filter((entry) => !['floralArrangements', 'sweetTreats'].includes(entry.category));
+    remaining.push({ ...(floral || {}), category: 'floralArrangements', products: mergeProducts(floral?.products || [], religious?.products || [], floralFromMixed) });
+    remaining.push({ ...(sweet || {}), category: 'sweetTreats', products: mergeProducts(sweet?.products || [], sweetFromMixed) });
+    return remaining;
+  }
+
+  return current;
+};
+
+const inferPackagingVisibility = (product) => /\b(box|hamper)\b/i.test([
+  product.name,
+  product.subcategory,
+  ...(Array.isArray(product.keyGift) ? product.keyGift : [product.keyGift]),
+  product.shortDescription,
+  product.longDescription,
+].filter(Boolean).join(' '));
+
+const normalizeColorOptionsForEdit = (options, images = []) => (Array.isArray(options) ? options : [])
+  .map((color) => {
+    const source = typeof color === 'string' ? { name: color } : (color || {});
+    const image = String(source.image || '');
+    const imageIndex = image ? images.indexOf(image) : source.imageIndex;
+    return {
+      name: String(source.name || source.color || ''),
+      hex: String(source.hex || '#000000').toUpperCase(),
+      image,
+      imageIndex: imageIndex >= 0 ? imageIndex : '',
+    };
+  })
+  .filter((color) => color.name);
+
+const normalizeSizeOptionsForEdit = (options, fallbackPrice) => (Array.isArray(options) ? options : [])
+  .map((size) => typeof size === 'string'
+    ? { name: size, price: fallbackPrice }
+    : {
+        name: String(size?.name || size?.size || ''),
+        price: size?.price ?? fallbackPrice,
+      })
+  .filter((size) => size.name);
+
 export default function Products() {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [editingProduct, setEditingProduct] = useState(null);
+  const [editingCategory, setEditingCategory] = useState('');
   const [editFormData, setEditFormData] = useState({});
   const [newImages, setNewImages] = useState([]);
   const [currentImagesToRetain, setCurrentImagesToRetain] = useState([]);
@@ -47,6 +144,10 @@ export default function Products() {
   const [deletingId, setDeletingId] = useState(null);
   const toast = useToast();
   const confirm = useConfirm();
+  const productOptionImages = useMemo(
+    () => [...currentImagesToRetain, ...newImages],
+    [currentImagesToRetain, newImages],
+  );
 
   useEffect(() => {
     getProducts();
@@ -56,7 +157,14 @@ export default function Products() {
     try {
       setLoading(true);
       const response = await fetchProducts();
-      setCategories(response.data);
+      const currentCategories = normalizeCategories(response.data)
+        .sort((left, right) => {
+          const leftIndex = categoryOrder.indexOf(left.category);
+          const rightIndex = categoryOrder.indexOf(right.category);
+          return (leftIndex < 0 ? Number.MAX_SAFE_INTEGER : leftIndex)
+            - (rightIndex < 0 ? Number.MAX_SAFE_INTEGER : rightIndex);
+        });
+      setCategories(currentCategories);
       setError(null);
     } catch (err) {
       console.error('Error fetching products:', err);
@@ -93,20 +201,33 @@ export default function Products() {
     }
   };
 
-  const handleEditClick = (product) => {
+  const handleEditClick = (product, category) => {
+    const whatsInside = cleanWhatsInsideItems(product.whatsInside || product.contents || product.items);
     setEditingProduct(product._id);
+    setEditingCategory(category);
     setEditFormData({
       _id: product._id,
       name: product.name,
       price: product.price,
       originalPrice: product.originalPrice || '',
       discount: product.discount || '',
-      keyGift: product.keyGift,
+      keyGift: Array.isArray(product.keyGift) ? product.keyGift.join(', ') : product.keyGift,
       subcategory: product.subcategory || '',
       shortDescription: product.shortDescription || '',
       longDescription: product.longDescription || '',
       metaTitle: product.metaTitle || '',
       metaDescription: product.metaDescription || '',
+      showWhatsInside: product.showWhatsInside ?? whatsInside.length > 0,
+      showPackaging: product.showPackaging ?? inferPackagingVisibility(product),
+      whatsInside,
+      showSizeOptions: product.showSizeOptions ?? Boolean(product.sizeOptions?.length),
+      sizeOptions: normalizeSizeOptionsForEdit(product.sizeOptions, product.price),
+      showColorOptions: product.showColorOptions ?? Boolean(product.colorOptions?.length),
+      colorOptions: normalizeColorOptionsForEdit(product.colorOptions, product.images || []),
+      requiresCustomerImages: Boolean(product.requiresCustomerImages),
+      customerImageLimit: Number(product.customerImageLimit) || 1,
+      showPhotoBundleOptions: Boolean(product.showPhotoBundleOptions),
+      photoBundleOptions: Array.isArray(product.photoBundleOptions) ? product.photoBundleOptions : [],
     });
     setNewImages([]);
     setCurrentImagesToRetain(product.images || []);
@@ -125,17 +246,117 @@ export default function Products() {
   };
 
   const handleSaveEdit = async () => {
+    const MAX_PRODUCT_IMAGES = 10;
     let productDataToSend = { ...editFormData };
+    productDataToSend.keyGift = String(productDataToSend.keyGift || '')
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean);
+    productDataToSend.whatsInside = cleanWhatsInsideItems(productDataToSend.whatsInside);
+    productDataToSend.images = currentImagesToRetain;
 
-    if (newImages.length === 0) {
-      productDataToSend.images = currentImagesToRetain;
+    if (productDataToSend.showWhatsInside && !hasCompleteWhatsInsideItems(editFormData.whatsInside)) {
+      toast.error('Each What’s Inside item needs a name and an image.');
+      return;
+    }
+    if (productDataToSend.showSizeOptions && productDataToSend.sizeOptions.length === 0) {
+      toast.error('Select at least one size before enabling size options.');
+      return;
+    }
+    if (productDataToSend.showSizeOptions && productDataToSend.sizeOptions.some((size) => (
+      !String(size?.name || size?.size || '').trim()
+      || !Number.isFinite(Number(size?.price))
+      || Number(size.price) <= 0
+    ))) {
+      toast.error('Enter a valid price for every enabled size.');
+      return;
+    }
+    if (productDataToSend.showColorOptions && productDataToSend.colorOptions.length === 0) {
+      toast.error('Add at least one color before enabling color options.');
+      return;
+    }
+    if (productDataToSend.showColorOptions) {
+      const invalidColor = productDataToSend.colorOptions.some((color) => {
+        const name = String(color?.name || '').trim();
+        const hex = String(color?.hex || '').trim();
+        const linkedUrl = String(color?.image || '');
+        const linkedIndex = color?.imageIndex;
+        const hasLinkedImage = (linkedUrl && currentImagesToRetain.includes(linkedUrl))
+          || (linkedIndex !== ''
+            && Number.isInteger(Number(linkedIndex))
+            && Number(linkedIndex) >= 0
+            && Number(linkedIndex) < productOptionImages.length);
+        return !name || !/^#[0-9a-f]{6}$/i.test(hex) || !hasLinkedImage;
+      });
+      if (invalidColor) {
+        toast.error('Each color needs a name, a valid hex shade, and a linked product image.');
+        return;
+      }
+    }
+    if (productDataToSend.requiresCustomerImages) {
+      if (productDataToSend.showPhotoBundleOptions) {
+        const bundles = (productDataToSend.photoBundleOptions || []).map((option) => ({
+          photoCount: Number(option.photoCount),
+          price: Number(option.price),
+        }));
+        const counts = bundles.map((option) => option.photoCount);
+        const invalidBundle = !bundles.length || bundles.some((option) => (
+          !Number.isInteger(option.photoCount)
+          || option.photoCount < 1
+          || option.photoCount > 30
+          || !Number.isFinite(option.price)
+          || option.price <= 0
+        )) || new Set(counts).size !== counts.length;
+        if (invalidBundle) {
+          toast.error('Add valid, unique photo bundles between 1 and 30 photos with a price for each.');
+          return;
+        }
+        productDataToSend.photoBundleOptions = bundles.sort((a, b) => a.photoCount - b.photoCount);
+        productDataToSend.customerImageLimit = Math.max(...counts);
+      }
+      const photoLimit = Number(productDataToSend.customerImageLimit);
+      if (!Number.isInteger(photoLimit) || photoLimit < 1 || photoLimit > 30) {
+        toast.error('Set the customer photo limit between 1 and 30.');
+        return;
+      }
+      productDataToSend.customerImageLimit = photoLimit;
+    }
+
+    if (currentImagesToRetain.length + newImages.length === 0) {
+      toast.error('Please keep or upload at least one product image.');
+      return;
+    }
+    if (currentImagesToRetain.length + newImages.length > MAX_PRODUCT_IMAGES) {
+      toast.error(`A product can have up to ${MAX_PRODUCT_IMAGES} images.`);
+      return;
     }
 
     setSavingEdit(true);
     try {
-      await updateProductById(editingProduct, productDataToSend, newImages);
+      const whatsInsideImageEntries = (editFormData.whatsInside || [])
+        .map((item, index) => ({ index, file: item.imageFile }))
+        .filter((entry) => entry.file);
+      const [preparedProductUpload, preparedInsideUpload] = await Promise.all([
+        prepareImagesForUpload(newImages),
+        prepareImagesForUpload(whatsInsideImageEntries.map((entry) => entry.file)),
+      ]);
+      const totalBytes = preparedProductUpload.totalBytes + preparedInsideUpload.totalBytes;
+      if (totalBytes > 4 * 1024 * 1024) {
+        toast.error('Images are too large for upload. Please use fewer images or smaller originals.');
+        return;
+      }
+      await updateProductById(
+        editingProduct,
+        productDataToSend,
+        preparedProductUpload.files,
+        preparedInsideUpload.files.map((file, uploadIndex) => ({
+          index: whatsInsideImageEntries[uploadIndex].index,
+          file,
+        })),
+      );
       await getProducts();
       setEditingProduct(null);
+      setEditingCategory('');
       setEditFormData({});
       setNewImages([]);
       setCurrentImagesToRetain([]);
@@ -150,6 +371,7 @@ export default function Products() {
 
   const handleCancelEdit = () => {
     setEditingProduct(null);
+    setEditingCategory('');
     setEditFormData({});
     setNewImages([]);
     setCurrentImagesToRetain([]);
@@ -173,7 +395,7 @@ export default function Products() {
       ) : (
         categories.map((cat) => (
           <CategorySection
-            key={cat._id}
+            key={cat._id || cat.category}
             category={cat}
             onEdit={handleEditClick}
             onDelete={handleDelete}
@@ -231,6 +453,13 @@ export default function Products() {
           />
         </div>
 
+        <ProductOptionsEditor
+          value={editFormData}
+          imageSources={productOptionImages}
+          allowCustomerImages={editingCategory === 'personalized'}
+          onChange={setEditFormData}
+        />
+
         <Textarea
           label="Short Description"
           name="shortDescription"
@@ -243,6 +472,41 @@ export default function Products() {
           value={editFormData.longDescription || ''}
           onChange={handleEditFormChange}
         />
+
+        {editingCategory !== 'greetingCards' && (
+          <>
+            <fieldset className="whats-inside-editor">
+              <legend>Product detail sections</legend>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.65rem', marginBottom: '0.75rem', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={Boolean(editFormData.showWhatsInside)}
+                  onChange={(event) => setEditFormData((previous) => ({ ...previous, showWhatsInside: event.target.checked }))}
+                />
+                <span><strong>Show What&apos;s Inside</strong><br /><small>Display the included-item section on this product page.</small></span>
+              </label>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.65rem', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={Boolean(editFormData.showPackaging)}
+                  onChange={(event) => setEditFormData((previous) => ({ ...previous, showPackaging: event.target.checked }))}
+                />
+                <span><strong>Show How It&apos;s Packaged</strong><br /><small>Display the Gift Unwrap packaging explanation on this product page.</small></span>
+              </label>
+            </fieldset>
+
+            {editFormData.showWhatsInside && (
+              <WhatsInsideEditor
+                category={editingCategory}
+                items={editFormData.whatsInside || []}
+                onChange={(whatsInside) => setEditFormData((previous) => ({
+                  ...previous,
+                  whatsInside,
+                }))}
+              />
+            )}
+          </>
+        )}
 
         <Input
           label="Meta Title"
@@ -263,12 +527,13 @@ export default function Products() {
         <ImageDropzone
           label="Product Images"
           multiple
-          maxFiles={4}
+          maxFiles={10}
           files={newImages}
           onFilesChange={setNewImages}
-          existingImages={newImages.length === 0 ? currentImagesToRetain : []}
+          existingImages={currentImagesToRetain}
           onRemoveExisting={handleRemoveExistingImage}
-          help={newImages.length > 0 ? 'New images will replace the current ones on save.' : 'Upload new images to replace the current ones, or leave as-is to keep them.'}
+          countExistingTowardLimit
+          help="New images are added to the current gallery. Remove individual current images with the × button. Up to 10 images total."
         />
       </Modal>
     </div>
@@ -282,7 +547,7 @@ function CategorySection({ category, onEdit, onDelete, deletingId }) {
     <div style={{ marginBottom: 'var(--space-7)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
         <h3 style={{ margin: 0, fontSize: '1.05rem', textTransform: 'capitalize', color: 'var(--color-text)' }}>
-          {category.category}
+          {categoryLabels[category.category] || category.category}
         </h3>
         <Badge variant="neutral">{category.products.length} products</Badge>
       </div>
@@ -327,7 +592,7 @@ function CategorySection({ category, onEdit, onDelete, deletingId }) {
                         {p.discount && <div style={{ fontSize: '0.78rem', color: 'var(--color-success)' }}>{p.discount}% off</div>}
                       </td>
                       <td data-label="Key Gift">
-                        {p.keyGift}
+                        {Array.isArray(p.keyGift) ? p.keyGift.join(', ') : p.keyGift}
                         {p.subcategory && <div className="dt-row-subtitle">{p.subcategory}</div>}
                       </td>
                       <td data-label="Reviews">
@@ -349,7 +614,7 @@ function CategorySection({ category, onEdit, onDelete, deletingId }) {
                       </td>
                       <td className="col-actions" data-label="Actions">
                         <div className="dt-action-group">
-                          <Button variant="secondary" size="sm" onClick={() => onEdit(p)} icon={<i className="bi bi-pencil" aria-hidden="true" />}>
+                          <Button variant="secondary" size="sm" onClick={() => onEdit(p, category.category)} icon={<i className="bi bi-pencil" aria-hidden="true" />}>
                             Edit
                           </Button>
                           <Button
