@@ -42,6 +42,8 @@ export default function ProductOptionsEditor({ value, onChange, imageSources = E
   const colorOptions = (Array.isArray(value.colorOptions) ? value.colorOptions : []).map(normalizeColor);
   const photoBundleOptions = (Array.isArray(value.photoBundleOptions) ? value.photoBundleOptions : [])
     .map(normalizePhotoBundle);
+  const ringSizeMode = value.ringSizeMode || 'none';
+  const ringSizes = (Array.isArray(value.sizeOptions) ? value.sizeOptions : []).map((size) => normalizeSize(size, value.price));
 
   const imageOptions = useMemo(() => imageSources.map((source, index) => {
     const isFile = typeof File !== 'undefined' && source instanceof File;
@@ -96,6 +98,37 @@ export default function ProductOptionsEditor({ value, onChange, imageSources = E
     <fieldset className="whats-inside-editor">
       <legend>Product options</legend>
 
+      <label style={{ display: 'block', marginBottom: '1rem' }}>
+        <strong>Ring sizing</strong>
+        <select className="input" value={ringSizeMode} onChange={(event) => update({
+          ringSizeMode: event.target.value,
+          showSizeOptions: event.target.value === 'available',
+          sizeOptions: [],
+        })}>
+          <option value="none">Not a ring / use standard size options</option>
+          <option value="adjustable">Adjustable</option>
+          <option value="available">Available sizes</option>
+        </select>
+      </label>
+      {ringSizeMode === 'adjustable' && <p>Customers will see Adjustable size. No size selection is needed.</p>}
+      {ringSizeMode === 'available' && (
+        <div style={{ display: 'grid', gap: '0.75rem', marginBottom: '1rem' }} role="group" aria-label="Available ring sizes">
+          <small>Enter the exact sizes you sell, including the sizing system, e.g. US 6 or US 7.</small>
+          {ringSizes.map((size, index) => (
+            <div key={index} style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'end' }}>
+              <label style={{ flex: '1 1 140px' }}>Size
+                <input className="input" value={size.name} maxLength={50} placeholder="e.g. US 6" onChange={(event) => update({ sizeOptions: ringSizes.map((entry, position) => position === index ? { ...entry, name: event.target.value } : entry) })} />
+              </label>
+              <label style={{ flex: '1 1 140px' }}>Price (PKR)
+                <input className="input" type="number" min="1" step="1" value={size.price} onChange={(event) => update({ sizeOptions: ringSizes.map((entry, position) => position === index ? { ...entry, price: event.target.value } : entry) })} />
+              </label>
+              <Button type="button" variant="secondary" onClick={() => update({ sizeOptions: ringSizes.filter((_, position) => position !== index) })}>Remove size</Button>
+            </div>
+          ))}
+          <Button type="button" variant="secondary" onClick={() => update({ sizeOptions: [...ringSizes, { name: '', price: value.price || '' }] })}>Add ring size</Button>
+        </div>
+      )}
+
       <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.65rem', marginBottom: '0.75rem', cursor: 'pointer' }}>
         <input
           type="checkbox"
@@ -109,6 +142,7 @@ export default function ProductOptionsEditor({ value, onChange, imageSources = E
         <input
           type="checkbox"
           checked={Boolean(value.showSizeOptions)}
+          disabled={ringSizeMode !== 'none'}
           onChange={(event) => update({
             showSizeOptions: event.target.checked,
             sizeOptions: event.target.checked ? sizeOptions : [],
@@ -117,7 +151,7 @@ export default function ProductOptionsEditor({ value, onChange, imageSources = E
         <span><strong>Offer size options</strong><br /><small>Let customers choose a size on the product page.</small></span>
       </label>
 
-      {value.showSizeOptions && (
+      {value.showSizeOptions && ringSizeMode === 'none' && (
         <div style={{ display: 'grid', gap: '0.6rem', margin: '0 0 1rem 1.75rem' }} role="group" aria-label="Available sizes and prices">
           {SIZE_OPTIONS.map((size) => (
             <div key={size} style={{ display: 'grid', gridTemplateColumns: '110px minmax(150px, 240px)', gap: '0.75rem', alignItems: 'center' }}>

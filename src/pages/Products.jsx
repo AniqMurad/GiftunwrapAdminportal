@@ -222,6 +222,7 @@ export default function Products() {
       allowCakeMessage: Boolean(product.allowCakeMessage),
       whatsInside,
       showSizeOptions: product.showSizeOptions ?? Boolean(product.sizeOptions?.length),
+      ringSizeMode: product.ringSizeMode || 'none',
       sizeOptions: normalizeSizeOptionsForEdit(product.sizeOptions, product.price),
       showColorOptions: product.showColorOptions ?? Boolean(product.colorOptions?.length),
       colorOptions: normalizeColorOptionsForEdit(product.colorOptions, product.images || []),
